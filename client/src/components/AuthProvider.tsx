@@ -11,6 +11,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         const user = await authApi.getMe();
         setUser(user);
       } catch {
+        // 401 is expected for unauthenticated users - just clear state
         setUser(null);
       }
     };

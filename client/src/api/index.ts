@@ -12,9 +12,17 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect on 401 for authenticated routes (not the initial getMe check)
+    // Skip redirect if already on login/register page
     if (error.response?.status === 401) {
-      // Redirect to login on unauthorized
-      window.location.href = '/login';
+      const path = window.location.pathname;
+      const isAuthPage = path === '/login' || path === '/register';
+      const isMeEndpoint = error.config?.url?.includes('/auth/me');
+
+      // Only redirect for real auth failures, not initial session checks
+      if (!isAuthPage && !isMeEndpoint) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

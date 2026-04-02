@@ -78,7 +78,7 @@ export default function MainLayout() {
         </Dropdown>
       </Header>
 
-      <Content className="px-4 md:px-8 py-6 max-w-7xl mx-auto w-full">
+      <Content className="px-4 md:px-8 py-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

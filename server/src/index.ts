@@ -105,6 +105,7 @@ app.get('/api/wrong-book', requireAuth, wrongBookController.getWrongBook);
 app.delete('/api/wrong-book/:id', requireAuth, wrongBookController.removeWrongAnswer);
 
 // ==================== Stats Routes ====================
+app.get('/api/stats/dashboard', requireAuth, statsController.getDashboard);
 app.get('/api/stats/overview', requireAuth, statsController.getStatsOverview);
 app.get('/api/stats/category', requireAuth, statsController.getCategoryStats);
 app.get('/api/admin/stats', requireAdmin, statsController.getAdminStats);

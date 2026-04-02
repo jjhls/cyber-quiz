@@ -1,6 +1,85 @@
 import type { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 
+export async function getDashboard(req: Request, res: Response) {
+  try {
+    const session = req.session as any;
+    const now = new Date();
+
+    const [ongoingContests, upcomingContests, submissions, nextContest] = await Promise.all([
+      // Ongoing contests count
+      prisma.contest.count({
+        where: {
+          status: 'ongoing',
+          startTime: { lte: now },
+          endTime: { gt: now },
+        },
+      }),
+      // Upcoming contests count
+      prisma.contest.count({
+        where: {
+          status: 'upcoming',
+          startTime: { gt: now },
+        },
+      }),
+      // User's submissions with scores
+      prisma.submission.findMany({
+        where: { userId: session.userId },
+        orderBy: { submittedAt: 'desc' },
+        take: 20,
+        include: { contest: { select: { title: true, totalScore: true } } },
+      }),
+      // Next upcoming contest
+      prisma.contest.findFirst({
+        where: {
+          startTime: { gt: now },
+          status: { in: ['upcoming', 'ongoing'] },
+        },
+        orderBy: { startTime: 'asc' },
+      }),
+    ]);
+
+    // Calculate total submissions and avg score
+    const totalSubmissions = submissions.length;
+    const avgScore = totalSubmissions > 0
+      ? submissions.reduce((sum, s) => sum + s.score, 0) / totalSubmissions
+      : 0;
+
+    // Calculate user ranking (by total score across all submissions)
+    const allUsersScores = await prisma.submission.groupBy({
+      by: ['userId'],
+      _sum: { score: true },
+      orderBy: { _sum: { score: 'desc' } },
+    });
+    const userRank = allUsersScores.findIndex(s => s.userId === session.userId) + 1;
+    const totalUsers = await prisma.user.count();
+
+    res.json({
+      ongoingContests,
+      upcomingContests,
+      totalSubmissions,
+      avgScore: Math.round(avgScore * 10) / 10,
+      userRank: userRank || totalUsers,
+      totalUsers,
+      nextContest: nextContest ? {
+        id: nextContest.id,
+        title: nextContest.title,
+        startTime: nextContest.startTime,
+      } : null,
+      recentSubmissions: submissions.slice(0, 5).map(s => ({
+        id: s.id,
+        contestTitle: s.contest.title,
+        score: s.score,
+        totalScore: s.totalScore,
+        submittedAt: s.submittedAt,
+      })),
+    });
+  } catch (error: any) {
+    console.error('GetDashboard error:', error);
+    res.status(500).json({ message: '获取仪表盘数据失败' });
+  }
+}
+
 export async function getStatsOverview(req: Request, res: Response) {
   try {
     const session = req.session as any;
@@ -34,10 +113,19 @@ export async function getCategoryStats(req: Request, res: Response) {
     });
 
     const categoryErrors: Record<string, number> = {};
-    for (const wa of wrongAnswers) {
-      const question = await prisma.question.findUnique({ where: { id: wa.questionId } });
-      if (question) {
-        categoryErrors[question.category] = (categoryErrors[question.category] || 0) + wa.errorCount;
+    const questionIds = wrongAnswers.map(wa => wa.questionId);
+    if (questionIds.length > 0) {
+      const questions = await prisma.question.findMany({
+        where: { id: { in: questionIds } },
+        select: { id: true, category: true },
+      });
+      const questionMap = new Map(questions.map(q => [q.id, q.category]));
+
+      for (const wa of wrongAnswers) {
+        const category = questionMap.get(wa.questionId);
+        if (category) {
+          categoryErrors[category] = (categoryErrors[category] || 0) + wa.errorCount;
+        }
       }
     }
 

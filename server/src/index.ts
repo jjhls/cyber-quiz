@@ -18,6 +18,7 @@ import * as userController from './controllers/userController';
 
 // Middleware
 import { requireAuth, requireAdmin } from './middleware/auth';
+import { rateLimitAuth } from './middleware/rateLimiter';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -40,18 +41,25 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Session configuration
+const isProd = process.env.NODE_ENV === 'production';
+
+if (!process.env.SESSION_SECRET && isProd) {
+  throw new Error('SESSION_SECRET environment variable is required in production');
+}
+
 app.use(session({
   store: new SQLiteStore({
     db: 'sessions.db',
     dir: dataDir,
   }) as any,
-  secret: process.env.SESSION_SECRET || 'cyber-quiz-secret-key-change-in-production',
+  secret: process.env.SESSION_SECRET || 'dev-secret-do-not-use-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: isProd,
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax',
   },
 }));
 
@@ -61,8 +69,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ==================== Auth Routes ====================
-app.post('/api/auth/register', authController.register);
-app.post('/api/auth/login', authController.login);
+app.post('/api/auth/register', rateLimitAuth, authController.register);
+app.post('/api/auth/login', rateLimitAuth, authController.login);
 app.get('/api/auth/me', authController.getMe);
 app.post('/api/auth/logout', authController.logout);
 app.put('/api/auth/password', requireAuth, authController.changePassword);

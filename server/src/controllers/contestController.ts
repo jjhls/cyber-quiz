@@ -117,14 +117,17 @@ export async function updateContest(req: Request, res: Response) {
       });
       updateData.totalScore = questions.reduce((sum, q) => sum + q.score, 0);
 
-      await prisma.contestQuestion.deleteMany({ where: { contestId: id } });
-      await prisma.contestQuestion.createMany({
-        data: questionIds.map((qid: string, idx: number) => ({
-          contestId: id,
-          questionId: qid,
-          sortOrder: idx,
-        })),
-      });
+      // W11: Use transaction to ensure atomic question reassignment
+      await prisma.$transaction([
+        prisma.contestQuestion.deleteMany({ where: { contestId: id } }),
+        prisma.contestQuestion.createMany({
+          data: questionIds.map((qid: string, idx: number) => ({
+            contestId: id,
+            questionId: qid,
+            sortOrder: idx,
+          })),
+        }),
+      ]);
     }
 
     const contest = await prisma.contest.update({

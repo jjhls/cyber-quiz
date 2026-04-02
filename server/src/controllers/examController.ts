@@ -2,13 +2,24 @@ import type { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { param } from '../utils/helpers';
 
-// Scoring engine
+// ---- Safe JSON helper ----
+function safeParse<T = any>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return fallback;
+  }
+}
+
+// ---- Scoring engine ----
 function scoreSingleChoice(userAnswer: string, correctAnswer: string): boolean {
+  if (!userAnswer || !correctAnswer) return false;
   return userAnswer.trim().toUpperCase() === correctAnswer.trim().toUpperCase();
 }
 
 function scoreMultipleChoice(userAnswer: string[], correctAnswer: string[]): boolean {
   if (!Array.isArray(userAnswer) || !Array.isArray(correctAnswer)) return false;
+  if (userAnswer.length === 0 || correctAnswer.length === 0) return false;
   const sortedUser = [...userAnswer].map(a => a.trim().toUpperCase()).sort();
   const sortedCorrect = [...correctAnswer].map(a => a.trim().toUpperCase()).sort();
   if (sortedUser.length !== sortedCorrect.length) return false;
@@ -16,31 +27,42 @@ function scoreMultipleChoice(userAnswer: string[], correctAnswer: string[]): boo
 }
 
 function scoreTrueFalse(userAnswer: string, correctAnswer: string): boolean {
+  if (!userAnswer || !correctAnswer) return false;
   return userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
 }
 
 function scoreFillBlank(userAnswer: string, correctAnswer: string[]): boolean {
+  if (!userAnswer || !Array.isArray(correctAnswer) || correctAnswer.length === 0) return false;
   const trimmed = userAnswer.trim().toLowerCase();
   return correctAnswer.some((a: string) => a.trim().toLowerCase() === trimmed);
 }
 
 export function scoreAnswer(type: string, userAnswer: any, correctAnswer: any): boolean {
-  switch (type) {
-    case 'single': return scoreSingleChoice(String(userAnswer), String(correctAnswer));
-    case 'multiple': return scoreMultipleChoice(
-      Array.isArray(userAnswer) ? userAnswer : [userAnswer],
-      Array.isArray(correctAnswer) ? correctAnswer : JSON.parse(correctAnswer)
-    );
-    case 'truefalse': return scoreTrueFalse(String(userAnswer), String(correctAnswer));
-    case 'fillblank': return scoreFillBlank(String(userAnswer), Array.isArray(correctAnswer) ? correctAnswer : JSON.parse(correctAnswer));
-    default: return false;
+  try {
+    switch (type) {
+      case 'single': return scoreSingleChoice(String(userAnswer ?? ''), String(correctAnswer ?? ''));
+      case 'multiple': return scoreMultipleChoice(
+        Array.isArray(userAnswer) ? userAnswer : [userAnswer],
+        Array.isArray(correctAnswer) ? correctAnswer : safeParse(String(correctAnswer), [])
+      );
+      case 'truefalse': return scoreTrueFalse(String(userAnswer ?? ''), String(correctAnswer ?? ''));
+      case 'fillblank': return scoreFillBlank(
+        String(userAnswer ?? ''),
+        Array.isArray(correctAnswer) ? correctAnswer : safeParse(String(correctAnswer), [])
+      );
+      default: return false;
+    }
+  } catch {
+    return false;
   }
 }
 
+// ---- startExam ----
 export async function startExam(req: Request, res: Response) {
   try {
     const contestId = param(req.params, 'contestId');
     const session = req.session as any;
+    const now = new Date();
 
     const contest = await prisma.contest.findUnique({
       where: { id: contestId },
@@ -51,11 +73,11 @@ export async function startExam(req: Request, res: Response) {
       return res.status(404).json({ message: '竞赛不存在' });
     }
 
-    if (contest.status !== 'ongoing') {
+    // C10: Time window check (status + actual time)
+    if (contest.status !== 'ongoing' || now < contest.startTime || now > contest.endTime) {
       return res.status(400).json({ message: '竞赛未开始或已结束' });
     }
 
-    // Check if already submitted
     const existing = await prisma.submission.findFirst({
       where: { userId: session.userId, contestId },
     });
@@ -63,23 +85,20 @@ export async function startExam(req: Request, res: Response) {
       return res.status(400).json({ message: '您已提交过该竞赛的答案' });
     }
 
-    // Filter non-deleted questions
     let questions = contest.contestQuestions
       .filter((cq: any) => !cq.question.deleted)
       .map((cq: any) => cq.question);
 
-    // Shuffle questions if enabled
     if (contest.shuffleQuestions) {
       questions = [...questions].sort(() => Math.random() - 0.5);
     }
 
-    // Shuffle options if enabled
     const examQuestions = questions.map((q: any) => {
       const question = {
         id: q.id,
         type: q.type,
         title: q.title,
-        options: JSON.parse(q.options || '[]') as string[],
+        options: safeParse<string[]>(q.options, []),
         score: q.score,
       };
 
@@ -89,6 +108,10 @@ export async function startExam(req: Request, res: Response) {
 
       return question;
     });
+
+    // C9: Record startedAt in session
+    session.examStartedAt = now.toISOString();
+    session.examContestId = contestId;
 
     res.json({
       contestId: contest.id,
@@ -103,11 +126,13 @@ export async function startExam(req: Request, res: Response) {
   }
 }
 
+// ---- submitExam ----
 export async function submitExam(req: Request, res: Response) {
   try {
     const contestId = param(req.params, 'contestId');
     const { answers } = req.body;
     const session = req.session as any;
+    const now = new Date();
 
     if (!answers || typeof answers !== 'object') {
       return res.status(400).json({ message: '答案数据格式错误' });
@@ -122,13 +147,23 @@ export async function submitExam(req: Request, res: Response) {
       return res.status(404).json({ message: '竞赛不存在' });
     }
 
-    // Check if already submitted
+    // C10: Time window check
+    if (now > contest.endTime) {
+      return res.status(400).json({ message: '竞赛已结束' });
+    }
+
     const existing = await prisma.submission.findFirst({
       where: { userId: session.userId, contestId },
     });
     if (existing) {
       return res.status(400).json({ message: '您已提交过该竞赛的答案' });
     }
+
+    // C9: Use server-recorded start time
+    const startedAt = session.examStartedAt && session.examContestId === contestId
+      ? new Date(session.examStartedAt)
+      : new Date(now.getTime() - (req.body.duration || 0) * 1000);
+    const duration = Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 1000));
 
     // Score answers
     const questions = contest.contestQuestions
@@ -140,9 +175,10 @@ export async function submitExam(req: Request, res: Response) {
 
     for (const q of questions) {
       const userAnswer = answers[q.id];
-      const correctAnswer = JSON.parse(q.answer);
-      const isCorrect = scoreAnswer(q.type, userAnswer, correctAnswer);
+      const correctAnswer = safeParse(q.answer, null);
+      if (correctAnswer === null) continue; // skip corrupted answers
 
+      const isCorrect = scoreAnswer(q.type, userAnswer, correctAnswer);
       if (isCorrect) {
         score += q.score;
         correctCount++;
@@ -157,10 +193,6 @@ export async function submitExam(req: Request, res: Response) {
       }
     }
 
-    const now = new Date();
-    const startedAt = new Date(now.getTime() - (req.body.duration || 0) * 1000);
-
-    // Create submission
     const submission = await prisma.submission.create({
       data: {
         userId: session.userId,
@@ -169,29 +201,30 @@ export async function submitExam(req: Request, res: Response) {
         totalScore: contest.totalScore,
         correctCount,
         totalCount: questions.length,
-        duration: req.body.duration || 0,
+        duration,
         answers: JSON.stringify(answers),
         startedAt,
         submittedAt: now,
       },
     });
 
-    // Save wrong answers
-    if (wrongAnswers.length > 0) {
-      // Upsert: increment error count if already exists
-      for (const wa of wrongAnswers) {
-        const existingWrong = await prisma.wrongAnswer.findFirst({
-          where: { userId: wa.userId, questionId: wa.questionId },
-        });
+    // Clear exam session state
+    delete session.examStartedAt;
+    delete session.examContestId;
 
-        if (existingWrong) {
-          await prisma.wrongAnswer.update({
-            where: { id: existingWrong.id },
-            data: { errorCount: { increment: 1 }, updatedAt: new Date() },
-          });
-        } else {
-          await prisma.wrongAnswer.create({ data: wa });
-        }
+    // Save wrong answers
+    for (const wa of wrongAnswers) {
+      const existingWrong = await prisma.wrongAnswer.findFirst({
+        where: { userId: wa.userId, questionId: wa.questionId },
+      });
+
+      if (existingWrong) {
+        await prisma.wrongAnswer.update({
+          where: { id: existingWrong.id },
+          data: { errorCount: { increment: 1 }, updatedAt: new Date() },
+        });
+      } else {
+        await prisma.wrongAnswer.create({ data: wa });
       }
     }
 
@@ -201,7 +234,7 @@ export async function submitExam(req: Request, res: Response) {
       totalScore: contest.totalScore,
       correctCount,
       totalCount: questions.length,
-      duration: submission.duration,
+      duration,
       wrongCount: wrongAnswers.length,
     });
   } catch (error: any) {
@@ -210,6 +243,7 @@ export async function submitExam(req: Request, res: Response) {
   }
 }
 
+// ---- getExamResult ----
 export async function getExamResult(req: Request, res: Response) {
   try {
     const contestId = param(req.params, 'contestId');
@@ -217,7 +251,6 @@ export async function getExamResult(req: Request, res: Response) {
 
     const submission = await prisma.submission.findFirst({
       where: { userId: session.userId, contestId },
-      include: { contest: true },
       orderBy: { submittedAt: 'desc' },
     });
 

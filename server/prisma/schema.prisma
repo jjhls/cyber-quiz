@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  password      String
+  role          String   @default("user")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  submissions   Submission[]
+  wrongAnswers  WrongAnswer[]
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  category      String
+  difficulty    String
+  type          String
+  title         String
+  options       String
+  answer        String
+  explanation   String   @default("")
+  tags          String
+  score         Int      @default(2)
+  deleted       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contestQuestions ContestQuestion[]
+}
+
+model Contest {
+  id                String   @id @default(cuid())
+  title             String
+  description       String   @default("")
+  startTime         DateTime
+  endTime           DateTime
+  duration          Int
+  totalScore        Int
+  status            String   @default("upcoming")
+  shuffleQuestions  Boolean  @default(false)
+  shuffleOptions    Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  contestQuestions  ContestQuestion[]
+  submissions       Submission[]
+}
+
+model ContestQuestion {
+  contestId   String
+  questionId  String
+  sortOrder   Int      @default(0)
+
+  contest     Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([contestId, questionId])
+}
+
+model Submission {
+  id            String   @id @default(cuid())
+  userId        String
+  contestId     String
+  score         Int      @default(0)
+  totalScore    Int
+  correctCount  Int      @default(0)
+  totalCount    Int
+  duration      Int
+  answers       String
+  startedAt     DateTime
+  submittedAt   DateTime
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+  contest       Contest  @relation(fields: [contestId], references: [id])
+}
+
+model WrongAnswer {
+  id            String   @id @default(cuid())
+  userId        String
+  questionId    String
+  contestId     String?
+  userAnswer    String
+  correctAnswer String
+  errorCount    Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+}

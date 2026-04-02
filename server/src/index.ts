@@ -1,0 +1,111 @@
+import express from 'express';
+import cors from 'cors';
+import session from 'express-session';
+import SQLiteStoreFactory from 'connect-sqlite3';
+import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
+
+// Controllers
+import * as authController from './controllers/authController';
+import * as questionController from './controllers/questionController';
+import * as contestController from './controllers/contestController';
+import * as examController from './controllers/examController';
+import * as practiceController from './controllers/practiceController';
+import * as wrongBookController from './controllers/wrongBookController';
+import * as statsController from './controllers/statsController';
+import * as userController from './controllers/userController';
+
+// Middleware
+import { requireAuth, requireAdmin } from './middleware/auth';
+
+const app = express();
+const PORT = process.env.PORT || 4000;
+
+// SQLite session store
+const SQLiteStore = SQLiteStoreFactory(session);
+
+// Ensure data directory exists
+const dataDir = path.join(__dirname, '../data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Middleware
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: dataDir,
+  }) as any,
+  secret: process.env.SESSION_SECRET || 'cyber-quiz-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+  },
+}));
+
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ==================== Auth Routes ====================
+app.post('/api/auth/register', authController.register);
+app.post('/api/auth/login', authController.login);
+app.get('/api/auth/me', authController.getMe);
+app.post('/api/auth/logout', authController.logout);
+app.put('/api/auth/password', requireAuth, authController.changePassword);
+
+// ==================== Question Routes ====================
+app.get('/api/questions', requireAuth, questionController.getQuestions);
+app.get('/api/questions/:id', requireAuth, questionController.getQuestion);
+app.post('/api/questions', requireAdmin, questionController.createQuestion);
+app.put('/api/questions/:id', requireAdmin, questionController.updateQuestion);
+app.delete('/api/questions/:id', requireAdmin, questionController.deleteQuestion);
+app.post('/api/questions/import', requireAdmin, questionController.importQuestions);
+
+// ==================== Contest Routes ====================
+app.get('/api/contests', requireAuth, contestController.getContests);
+app.get('/api/contests/:id', requireAuth, contestController.getContest);
+app.post('/api/contests', requireAdmin, contestController.createContest);
+app.put('/api/contests/:id', requireAdmin, contestController.updateContest);
+app.delete('/api/contests/:id', requireAdmin, contestController.deleteContest);
+app.get('/api/contests/:id/ranking', requireAuth, contestController.getContestRanking);
+
+// ==================== Exam Routes ====================
+app.get('/api/exams/:contestId/start', requireAuth, examController.startExam);
+app.post('/api/exams/:contestId/submit', requireAuth, examController.submitExam);
+app.get('/api/exams/:contestId/result', requireAuth, examController.getExamResult);
+
+// ==================== Practice Routes ====================
+app.get('/api/practice', requireAuth, practiceController.getPracticeQuestions);
+app.post('/api/practice/:questionId/answer', requireAuth, practiceController.submitPracticeAnswer);
+
+// ==================== Wrong Book Routes ====================
+app.get('/api/wrong-book', requireAuth, wrongBookController.getWrongBook);
+app.delete('/api/wrong-book/:id', requireAuth, wrongBookController.removeWrongAnswer);
+
+// ==================== Stats Routes ====================
+app.get('/api/stats/overview', requireAuth, statsController.getStatsOverview);
+app.get('/api/stats/category', requireAuth, statsController.getCategoryStats);
+app.get('/api/admin/stats', requireAdmin, statsController.getAdminStats);
+
+// ==================== User Routes ====================
+app.get('/api/users', requireAdmin, userController.getUsers);
+app.put('/api/users/:id', requireAdmin, userController.updateUser);
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
+});

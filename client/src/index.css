@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global dark theme overrides for Ant Design */
+:root {
+  --ant-color-primary: #3b82f6;
+  --ant-color-bg-base: #0f172a;
+  --ant-color-bg-container: #1e293b;
+  --ant-color-text-base: #f1f5f9;
+  --ant-color-border: #334155;
+  --ant-border-radius: 0.75rem;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

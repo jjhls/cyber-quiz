@@ -4,6 +4,7 @@ import { Typography, Button, Spin, message, Modal, Input, Checkbox, Radio, Tag, 
 import { ArrowLeftOutlined, StarFilled, SendOutlined, WarningOutlined, EyeOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { examApi, ExamData } from '../api/exam';
+import { useThemeStore } from '../stores/themeStore';
 
 const { Title, Text } = Typography;
 
@@ -18,6 +19,8 @@ interface MarkSet {
 export default function ExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
   const [exam, setExam] = useState<ExamData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,7 +76,7 @@ export default function ExamPage() {
   // Tab visibility - auto submit on leave
   useEffect(() => {
     const handleLeave = () => {
-      if (submitRef.current) return; // already submitting
+      if (submitRef.current) return;
       setTabSwitchCount(prev => prev + 1);
       doSubmit('leave');
     };
@@ -91,7 +94,7 @@ export default function ExamPage() {
 
   // Unified submit function (prevents double submit)
   const doSubmit = useCallback((reason: 'manual' | 'timeup' | 'leave') => {
-    if (submitRef.current) return submitRef.current; // prevent double submit
+    if (submitRef.current) return submitRef.current;
     if (!id || !exam) return Promise.resolve();
 
     const promise = (async () => {
@@ -126,7 +129,6 @@ export default function ExamPage() {
         submitRef.current = null;
         navigate(`/contests/${id}/result`);
       } catch (err: any) {
-        // If server says already submitted, navigate to result
         if (err.response?.data?.message?.includes('已提交')) {
           navigate(`/contests/${id}/result`);
           return;
@@ -213,11 +215,24 @@ export default function ExamPage() {
   const timerColor = remainingSec < 300 ? 'text-red-400 animate-pulse' : remainingSec < 900 ? 'text-amber-400' : 'text-blue-400';
   const progressPercent = exam ? Math.round((Object.keys(answers).length / exam.questions.length) * 100) : 0;
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Spin size="large" /></div>;
+  // Theme-aware class helpers
+  const cardBg = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200';
+  const textPrimary = isDark ? 'text-slate-100' : 'text-slate-900';
+  const textSecondary = isDark ? 'text-slate-300' : 'text-slate-700';
+  const textMuted = isDark ? 'text-slate-400' : 'text-slate-500';
+  const textFaint = isDark ? 'text-slate-500' : 'text-slate-400';
+  const optionBg = isDark ? 'border-slate-700 hover:border-slate-600 bg-slate-800/50 text-slate-300' : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-700';
+  const btnSecondary = isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700';
+  const btnMark = isDark ? 'border-slate-700 text-slate-400 bg-slate-800 hover:border-amber-500/50' : 'border-slate-200 text-slate-500 bg-slate-100 hover:border-amber-500/50';
+  const inputBg = isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-900';
+  const gridUnanswered = isDark ? 'bg-slate-800 text-slate-500 border border-slate-700 hover:border-slate-600 hover:text-slate-300' : 'bg-slate-100 text-slate-400 border border-slate-200 hover:border-slate-300 hover:text-slate-600';
+  const legendUnanswered = isDark ? 'bg-slate-800 border border-slate-700' : 'bg-slate-100 border border-slate-200';
+
+  if (loading) return <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}><Spin size="large" /></div>;
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className={`min-h-screen flex items-center justify-center p-4 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
         <div className="text-center space-y-4 max-w-md">
           <Alert
             type="error"
@@ -240,7 +255,7 @@ export default function ExamPage() {
   const currentAnswer = answers[current.id];
 
   return (
-    <div ref={examContainerRef} className="min-h-screen bg-slate-950">
+    <div ref={examContainerRef} className={`min-h-screen transition-colors duration-300 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
       {/* Fullscreen exit button (visible only in fullscreen) */}
       {isFullscreen && (
         <div className="fixed top-4 right-4 z-50">
@@ -265,7 +280,7 @@ export default function ExamPage() {
       )}
 
       {/* Header */}
-      <div className={`sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 ${isFullscreen ? '!hidden' : ''}`}>
+      <div className={`sticky top-0 z-50 backdrop-blur border-b px-4 md:px-6 py-3 transition-colors duration-300 ${isFullscreen ? '!hidden' : ''} ${isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-200'}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <Button
@@ -281,15 +296,15 @@ export default function ExamPage() {
                   onOk: () => navigate(`/contests/${exam.contestId}`),
                 });
               }}
-              className="text-slate-400 hover:text-slate-200 pl-0"
+              className={`pl-0 ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
             >
               返回
             </Button>
-            <Text className="text-slate-300 font-medium hidden sm:inline">{exam.title}</Text>
+            <Text className={`font-medium hidden sm:inline ${textSecondary}`}>{exam.title}</Text>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-400">
+            <div className={`text-sm ${textMuted}`}>
               已答 <span className="text-blue-400 font-bold">{Object.keys(answers).length}</span>/{exam.questions.length} 题
             </div>
 
@@ -298,7 +313,7 @@ export default function ExamPage() {
               type="text"
               icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
               onClick={toggleFullscreen}
-              className="text-slate-400 hover:text-slate-200"
+              className={isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'}
               title={isFullscreen ? '退出全屏' : '全屏模式'}
             />
 
@@ -310,7 +325,7 @@ export default function ExamPage() {
                   cy="24"
                   r="20"
                   fill="none"
-                  stroke="#1e293b"
+                  stroke={isDark ? '#1e293b' : '#e2e8f0'}
                   strokeWidth="3"
                 />
                 <circle
@@ -336,7 +351,7 @@ export default function ExamPage() {
           </div>
         </div>
 
-        <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
+        <div className={`mt-2 h-1 rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
           <div
             className="h-full bg-blue-500 transition-all duration-300 rounded-full"
             style={{ width: `${progressPercent}%` }}
@@ -348,8 +363,8 @@ export default function ExamPage() {
         <div className="flex gap-4 flex-col lg:flex-row">
           {/* Question Grid - Left */}
           <div className="lg:w-72 shrink-0">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sticky top-24">
-              <div className="text-sm font-medium text-slate-300 mb-4 flex items-center justify-between">
+            <div className={`${cardBg} rounded-2xl p-5 sticky top-24 border transition-colors duration-300`}>
+              <div className={`text-sm font-medium mb-4 flex items-center justify-between ${textSecondary}`}>
                 <span>📋 答题卡</span>
                 <Tag color={progressPercent === 100 ? 'emerald' : progressPercent > 50 ? 'blue' : 'default'}>
                   {progressPercent}%
@@ -370,7 +385,7 @@ export default function ExamPage() {
                           ? 'bg-blue-500 text-white ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900 scale-105'
                           : isAnswered
                             ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
-                            : 'bg-slate-800 text-slate-500 border border-slate-700 hover:border-slate-600 hover:text-slate-300'
+                            : gridUnanswered
                       }`}
                     >
                       {idx + 1}
@@ -382,8 +397,8 @@ export default function ExamPage() {
                 })}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-800">
-                <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+              <div className={`mt-4 pt-4 border-t ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                <div className={`grid grid-cols-2 gap-2 text-xs ${textFaint}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded bg-blue-500 ring-1 ring-blue-400"></span>
                     <span>当前题</span>
@@ -393,7 +408,7 @@ export default function ExamPage() {
                     <span>已答</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-slate-800 border border-slate-700"></span>
+                    <span className={`w-3 h-3 rounded ${legendUnanswered}`}></span>
                     <span>未答</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -425,7 +440,7 @@ export default function ExamPage() {
             transition={{ duration: 0.2 }}
             className="flex-1 min-w-0"
           >
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <div className={`${cardBg} rounded-2xl p-6 border transition-colors duration-300`}>
               <div className="flex items-center gap-3 mb-5 flex-wrap">
                 <Tag color="blue" className="text-sm px-3 py-1">
                   第 {currentIdx + 1} / {exam.questions.length} 题
@@ -450,7 +465,7 @@ export default function ExamPage() {
                 )}
               </div>
 
-              <Title level={4} className="!text-slate-100 !mb-8 whitespace-pre-wrap leading-relaxed">{current.title}</Title>
+              <Title level={4} className={`!mb-8 whitespace-pre-wrap leading-relaxed ${textPrimary}`}>{current.title}</Title>
 
               {current.type === 'single' && (
                 <div className="space-y-3">
@@ -461,10 +476,10 @@ export default function ExamPage() {
                       className={`p-4 rounded-xl cursor-pointer transition-all border ${
                         currentAnswer === opt
                           ? 'border-blue-500 bg-blue-500/10 text-slate-100'
-                          : 'border-slate-700 hover:border-slate-600 bg-slate-800/50 text-slate-300'
+                          : optionBg
                       }`}
                     >
-                      <Radio checked={currentAnswer === opt} className="text-slate-300">
+                      <Radio checked={currentAnswer === opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>
                         <span className="text-base">{opt}</span>
                       </Radio>
                     </div>
@@ -492,10 +507,10 @@ export default function ExamPage() {
                         className={`p-4 rounded-xl cursor-pointer transition-all border ${
                           selected
                             ? 'border-purple-500 bg-purple-500/10 text-slate-100'
-                            : 'border-slate-700 hover:border-slate-600 bg-slate-800/50 text-slate-300'
+                            : optionBg
                         }`}
                       >
-                        <Checkbox checked={selected} className="text-slate-300">
+                        <Checkbox checked={selected} className={isDark ? 'text-slate-300' : 'text-slate-700'}>
                           <span className="text-base">{opt}</span>
                         </Checkbox>
                       </div>
@@ -513,7 +528,7 @@ export default function ExamPage() {
                       className={`flex-1 p-8 rounded-xl cursor-pointer transition-all border text-center text-lg font-medium ${
                         currentAnswer === opt
                           ? 'border-blue-500 bg-blue-500/10 text-slate-100'
-                          : 'border-slate-700 hover:border-slate-600 bg-slate-800/50 text-slate-300'
+                          : optionBg
                       }`}
                     >
                       <div className="text-3xl mb-2">{opt === '正确' ? '✅' : '❌'}</div>
@@ -533,7 +548,7 @@ export default function ExamPage() {
                     placeholder="请输入答案..."
                     value={(currentAnswer as string) || ''}
                     onChange={e => setAnswer(current.id, e.target.value)}
-                    className="bg-slate-800 border-slate-600 text-slate-100 rounded-xl h-12 text-lg"
+                    className={`rounded-xl h-12 text-lg ${inputBg}`}
                     size="large"
                     onPressEnter={() => {
                       if (currentIdx < exam.questions.length - 1) {
@@ -544,13 +559,13 @@ export default function ExamPage() {
                 </div>
               )}
 
-              <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800 flex-wrap gap-3">
+              <div className={`flex items-center justify-between mt-8 pt-6 border-t flex-wrap gap-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <Button
                   onClick={() => toggleMark(current.id)}
                   className={`rounded-xl border text-base px-5 py-2 ${
                     marks[current.id]
                       ? 'border-amber-500 text-amber-400 bg-amber-500/10'
-                      : 'border-slate-700 text-slate-400 bg-slate-800 hover:border-amber-500/50'
+                      : btnMark
                   }`}
                 >
                   <StarFilled /> {marks[current.id] ? '已标记' : '标记此题'}
@@ -560,7 +575,7 @@ export default function ExamPage() {
                   <Button
                     onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
                     disabled={currentIdx === 0}
-                    className="bg-slate-800 border-slate-700 text-slate-300 rounded-xl text-base px-5 disabled:opacity-30"
+                    className={`rounded-xl text-base px-5 disabled:opacity-30 ${btnSecondary}`}
                   >
                     ← 上一题
                   </Button>

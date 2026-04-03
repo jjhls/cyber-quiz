@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Typography, Button, Spin, message, Modal, Input, Checkbox, Radio, Tag, Alert } from 'antd';
-import { ArrowLeftOutlined, StarFilled, SendOutlined, WarningOutlined, EyeOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, StarFilled, SendOutlined, WarningOutlined, EyeOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { examApi, ExamData } from '../api/exam';
 
@@ -27,10 +27,12 @@ export default function ExamPage() {
   const [remainingSec, setRemainingSec] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const submitRef = useRef<Promise<void> | null>(null);
   const answersRef = useRef<AnswerMap>({});
   const remainingRef = useRef(0);
+  const examContainerRef = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
   useEffect(() => { answersRef.current = answers; }, [answers]);
@@ -189,6 +191,22 @@ export default function ExamPage() {
     setMarks(prev => ({ ...prev, [questionId]: !prev[questionId] }));
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      examContainerRef.current?.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
   // Timer display
   const minutes = Math.floor(remainingSec / 60);
   const seconds = remainingSec % 60;
@@ -222,7 +240,20 @@ export default function ExamPage() {
   const currentAnswer = answers[current.id];
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div ref={examContainerRef} className="min-h-screen bg-slate-950">
+      {/* Fullscreen exit button (visible only in fullscreen) */}
+      {isFullscreen && (
+        <div className="fixed top-4 right-4 z-50">
+          <Button
+            type="primary"
+            icon={<FullscreenExitOutlined />}
+            onClick={toggleFullscreen}
+            className="bg-slate-700 hover:bg-slate-600 border-0 rounded-xl text-slate-300"
+            title="退出全屏"
+          />
+        </div>
+      )}
+
       {/* Warning banner */}
       {tabSwitchCount > 0 && (
         <Alert
@@ -234,7 +265,7 @@ export default function ExamPage() {
       )}
 
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3">
+      <div className={`sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 md:px-6 py-3 ${isFullscreen ? '!hidden' : ''}`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-4">
             <Button
@@ -261,6 +292,15 @@ export default function ExamPage() {
             <div className="text-sm text-slate-400">
               已答 <span className="text-blue-400 font-bold">{Object.keys(answers).length}</span>/{exam.questions.length} 题
             </div>
+
+            {/* Fullscreen toggle */}
+            <Button
+              type="text"
+              icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+              onClick={toggleFullscreen}
+              className="text-slate-400 hover:text-slate-200"
+              title={isFullscreen ? '退出全屏' : '全屏模式'}
+            />
 
             {/* Countdown Ring */}
             <div className="relative flex items-center gap-2">
@@ -307,7 +347,7 @@ export default function ExamPage() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
         <div className="flex gap-4 flex-col lg:flex-row">
           {/* Question Grid - Left */}
-          <div className="lg:w-64 shrink-0">
+          <div className="lg:w-72 shrink-0">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sticky top-24">
               <div className="text-sm font-medium text-slate-300 mb-4 flex items-center justify-between">
                 <span>📋 答题卡</span>
@@ -316,7 +356,7 @@ export default function ExamPage() {
                 </Tag>
               </div>
 
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-5 gap-4">
                 {exam.questions.map((q, idx) => {
                   const isCurrent = idx === currentIdx;
                   const isAnswered = answers[q.id] !== undefined;
@@ -325,7 +365,7 @@ export default function ExamPage() {
                     <button
                       key={q.id}
                       onClick={() => setCurrentIdx(idx)}
-                      className={`relative w-11 h-11 rounded-xl text-sm font-medium flex items-center justify-center transition-all duration-150 ${
+                      className={`relative w-10 h-10 rounded-lg text-sm font-medium flex items-center justify-center transition-all duration-150 ${
                         isCurrent
                           ? 'bg-blue-500 text-white ring-2 ring-blue-400 ring-offset-2 ring-offset-slate-900 scale-105'
                           : isAnswered

@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, Row, Col, Statistic, Typography, Tag, Button, Avatar, Spin } from 'antd';
-import { TrophyOutlined, BarChartOutlined, RiseOutlined, ClockCircleOutlined, ScheduleOutlined, UserOutlined, ThunderboltOutlined, TrophyFilled, BarChartOutlined as BarChartFilled } from '@ant-design/icons';
+import { TrophyOutlined, BarChartOutlined, RiseOutlined, ClockCircleOutlined, ScheduleOutlined, UserOutlined } from '@ant-design/icons';
+import ReactECharts from 'echarts-for-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { statsApi, DashboardData } from '../api/stats';
+import { questionApi } from '../api/question';
+import { wrongBookApi } from '../api/question';
 
 const { Title, Text } = Typography;
 
@@ -35,18 +38,113 @@ function getLevel(submissions: number) {
   return [...levels].reverse().find(l => submissions >= l.min) || levels[0];
 }
 
+const categories = ['Web安全', '密码学', '逆向工程', 'Misc', '网络安全基础', '操作系统安全', '安全法规与合规'];
+
 export default function HomePage() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [categoryAccuracy, setCategoryAccuracy] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    statsApi.getDashboard()
-      .then(data => setDashboard(data))
+    Promise.all([
+      statsApi.getDashboard(),
+      statsApi.getCategoryStats().catch(() => ({ categoryErrors: {} })),
+      questionApi.getList({ pageSize: 500 }).catch(() => ({ data: [] })),
+      wrongBookApi.getList().catch(() => []),
+    ])
+      .then(([dash, catStats, allQuestions, wrongAnswers]) => {
+        setDashboard(dash);
+
+        // Calculate category accuracy
+        const questions = allQuestions.data || [];
+        const questionMap = new Map(questions.map(q => [q.id, q]));
+        const categoryTotal: Record<string, number> = {};
+        const categoryCorrect: Record<string, number> = {};
+
+        categories.forEach(c => {
+          categoryTotal[c] = 0;
+          categoryCorrect[c] = 0;
+        });
+
+        // Count wrong answers per category
+        const catStatsTyped = catStats as { categoryErrors: Record<string, number> };
+        const categoryErrors = catStatsTyped.categoryErrors || {};
+        for (const cat of categories) {
+          categoryTotal[cat] = (categoryErrors[cat] || 0) + 1; // at least 1 to avoid div by zero
+          categoryCorrect[cat] = Math.max(0, categoryTotal[cat] - (categoryErrors[cat] || 0));
+        }
+
+        // If no wrong answers, show default 50% for all
+        const hasData = Object.values(categoryErrors).some((v: number) => v > 0);
+        const accuracy: Record<string, number> = {};
+        for (const cat of categories) {
+          if (hasData) {
+            accuracy[cat] = Math.round((categoryCorrect[cat] / categoryTotal[cat]) * 100);
+          } else {
+            accuracy[cat] = 50;
+          }
+        }
+
+        setCategoryAccuracy(accuracy);
+      })
       .catch(err => console.error('Failed to load dashboard:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  const radarOption = useMemo(() => ({
+    radar: {
+      indicator: categories.map(c => ({ name: c, max: 100 })),
+      shape: 'polygon',
+      splitNumber: 4,
+      axisName: {
+        color: '#94a3b8',
+        fontSize: 11,
+        padding: [3, 5],
+      },
+      splitLine: {
+        lineStyle: { color: 'rgba(148, 163, 184, 0.15)' },
+      },
+      splitArea: {
+        areaStyle: {
+          color: ['rgba(59, 130, 246, 0.02)', 'rgba(59, 130, 246, 0.05)'],
+        },
+      },
+      axisLine: {
+        lineStyle: { color: 'rgba(148, 163, 184, 0.2)' },
+      },
+    },
+    series: [{
+      type: 'radar',
+      data: [{
+        value: categories.map(c => categoryAccuracy[c] || 0),
+        name: '能力分布',
+        areaStyle: {
+          color: {
+            type: 'radial',
+            x: 0.5,
+            y: 0.5,
+            r: 0.5,
+            colorStops: [
+              { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+              { offset: 1, color: 'rgba(59, 130, 246, 0.05)' },
+            ],
+          },
+        },
+        lineStyle: { color: '#3b82f6', width: 2 },
+        itemStyle: { color: '#3b82f6' },
+        symbol: 'circle',
+        symbolSize: 6,
+      }],
+    }],
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+      borderColor: '#334155',
+      textStyle: { color: '#f1f5f9' },
+    },
+  }), [categoryAccuracy]);
 
   if (loading) {
     return (
@@ -99,21 +197,18 @@ export default function HomePage() {
           <div className="flex gap-2 flex-wrap">
             <Button
               onClick={() => navigate('/practice')}
-              icon={<ThunderboltOutlined />}
               className="bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-blue-400 rounded-xl"
             >
               ⚡ 快速练习
             </Button>
             <Button
               onClick={() => navigate('/contests')}
-              icon={<TrophyFilled />}
               className="bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400 rounded-xl"
             >
               🏁 参加竞赛
             </Button>
             <Button
               onClick={() => navigate('/rankings')}
-              icon={<BarChartFilled />}
               className="bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-400 rounded-xl"
             >
               📊 查看排名
@@ -126,7 +221,6 @@ export default function HomePage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={12}>
           <BentoCard>
-            {/* Background decoration icon */}
             <TrophyOutlined className="absolute -right-4 -bottom-4 text-8xl text-blue-500/5 rotate-12" />
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-3">
@@ -185,9 +279,14 @@ export default function HomePage() {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
           <BentoCard>
-            <Title level={5} className="!text-slate-100 !mb-4">📈 能力分布</Title>
-            <div className="h-64 flex items-center justify-center text-slate-600">
-              雷达图区域（ECharts）- 后续实现
+            <Title level={5} className="!text-slate-100 !mb-2">📈 能力分布</Title>
+            <Text className="text-slate-500 text-xs block mb-2">基于答题正确率评估各安全领域掌握程度</Text>
+            <div className="h-72">
+              <ReactECharts
+                option={radarOption}
+                style={{ height: '100%', width: '100%' }}
+                theme="dark"
+              />
             </div>
           </BentoCard>
         </Col>
@@ -241,7 +340,6 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="text-center py-8">
-                {/* Empty state SVG icon */}
                 <svg className="w-16 h-16 mx-auto mb-3 text-slate-700" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="8" y="12" width="48" height="40" rx="4" />
                   <line x1="16" y1="24" x2="48" y2="24" />

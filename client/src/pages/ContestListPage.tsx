@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Typography, Tag, Button, Row, Col, Input, Segmented, Spin, message } from 'antd';
+import { Card, Typography, Tag, Button, Row, Col, Input, Segmented, message } from 'antd';
 import { SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { contestApi, Contest } from '../api/contest';
@@ -38,6 +38,31 @@ function StatusTag({ status }: { status: string }) {
       )}
       {config.label}
     </span>
+  );
+}
+
+// Skeleton card for loading state
+function ContestSkeleton() {
+  return (
+    <Card className="bg-slate-900 border-slate-800 rounded-2xl overflow-hidden">
+      <div className="animate-pulse">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-slate-700" />
+            <div className="w-40 h-5 bg-slate-700 rounded" />
+          </div>
+          <div className="w-16 h-5 bg-slate-700 rounded-full" />
+        </div>
+        <div className="space-y-2 mb-4">
+          <div className="w-full h-4 bg-slate-700 rounded" />
+          <div className="flex gap-3">
+            <div className="w-24 h-4 bg-slate-700 rounded" />
+            <div className="w-20 h-4 bg-slate-700 rounded" />
+          </div>
+        </div>
+        <div className="w-full h-10 bg-slate-700 rounded-xl" />
+      </div>
+    </Card>
   );
 }
 
@@ -112,7 +137,13 @@ export default function ContestListPage() {
       />
 
       {loading ? (
-        <div className="flex justify-center py-20"><Spin size="large" /></div>
+        <Row gutter={[16, 16]}>
+          {[1, 2, 3, 4].map(i => (
+            <Col xs={24} md={12} key={i}>
+              <ContestSkeleton />
+            </Col>
+          ))}
+        </Row>
       ) : contests.length === 0 ? (
         <Card className="bg-slate-900 border-slate-800 rounded-2xl">
           <div className="text-center py-12">

@@ -19,7 +19,71 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar */
+/* ===== Background Grid Pattern ===== */
+.bg-cyber-grid {
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ===== Spotlight Gradient ===== */
+.bg-cyber-spotlight {
+  background: radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+}
+
+/* ===== Card Top Highlight Bar ===== */
+.card-highlight {
+  position: relative;
+  overflow: hidden;
+}
+.card-highlight::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.card-highlight:hover::before {
+  opacity: 1;
+}
+
+/* ===== Animated Gradient Border ===== */
+.card-glow {
+  position: relative;
+}
+.card-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), transparent, rgba(59, 130, 246, 0.1));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.card-glow:hover::after {
+  opacity: 1;
+}
+
+/* ===== Countdown Ring ===== */
+.countdown-ring {
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+/* ===== Score Circle Animation ===== */
+@keyframes score-fill {
+  from { stroke-dashoffset: 283; }
+}
+
+/* ===== Number Count Up (handled by Framer Motion) ===== */
+
+/* ===== Custom Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -32,4 +96,10 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+/* ===== Selection Color ===== */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: #f1f5f9;
 }

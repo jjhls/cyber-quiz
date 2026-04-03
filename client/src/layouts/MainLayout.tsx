@@ -52,8 +52,12 @@ export default function MainLayout() {
   ];
 
   return (
-    <Layout className="min-h-screen bg-slate-950">
-      <Header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 md:px-8 flex items-center gap-6 h-16">
+    <Layout className="min-h-screen bg-slate-950 relative">
+      {/* Background effects */}
+      <div className="fixed inset-0 bg-cyber-grid pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-cyber-spotlight pointer-events-none z-0" />
+
+      <Header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 md:px-8 flex items-center gap-6 h-16 relative z-10">
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <span className="text-xl font-bold text-blue-400 font-mono">CyberQuiz</span>
           <span className="text-blue-400 animate-pulse">_</span>

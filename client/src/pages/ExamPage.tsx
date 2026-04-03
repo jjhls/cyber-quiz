@@ -261,9 +261,37 @@ export default function ExamPage() {
             <div className="text-sm text-slate-400">
               已答 <span className="text-blue-400 font-bold">{Object.keys(answers).length}</span>/{exam.questions.length} 题
             </div>
-            <div className={`font-mono text-2xl font-bold flex items-center gap-2 ${timerColor}`}>
-              <span className="text-lg">⏱</span>
-              {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+
+            {/* Countdown Ring */}
+            <div className="relative flex items-center gap-2">
+              <svg width="48" height="48" className="countdown-ring">
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  stroke="#1e293b"
+                  strokeWidth="3"
+                />
+                <circle
+                  cx="24"
+                  cy="24"
+                  r="20"
+                  fill="none"
+                  stroke={remainingSec < 300 ? '#ef4444' : remainingSec < 900 ? '#f59e0b' : '#3b82f6'}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 20}`}
+                  strokeDashoffset={`${2 * Math.PI * 20 * (1 - remainingSec / (exam.duration * 60))}`}
+                  className="transition-all duration-1000 ease-linear"
+                  style={{
+                    filter: remainingSec < 300 ? 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.5))' : 'none',
+                  }}
+                />
+              </svg>
+              <div className={`font-mono text-xl font-bold ${timerColor}`}>
+                {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+              </div>
             </div>
           </div>
         </div>

@@ -30,18 +30,21 @@
 - ✅ **参赛人数**：显示当前竞赛参赛总人数，带数字滚动动画
 - ✅ **最高分**：显示第一名得分，带数字滚动动画
 - ✅ **我的排名**：显示当前用户的排名，未参赛显示"未参赛"
+- ✅ **紧凑布局**：标签与数值并排显示（flex 横向布局），避免短数据独占一行
 
 ### 2.3 领奖台优化
 - ✅ 前三名显示真实用户头像（从 auth store 获取）
 - ✅ 增加用时显示（分+秒）
 - ✅ 弹簧动画入场效果
 - ✅ 金银铜渐变领奖台柱
+- ✅ **动态高度**：领奖台柱高度根据分数比例动态计算（最低 80px，最高 160px），分数差异越大高度差越明显
 
 ### 2.4 排行榜表格
 - ✅ 用户名列显示用户头像（28px）
 - ✅ 我的排名行蓝色背景高亮
 - ✅ 排名图标（🥇🥈🥉）
 - ✅ 分数、正确率、用时、提交时间列
+- ✅ **分页功能**：每页 10 条，显示总数，避免长列表无限下拉
 
 ### 2.5 高级视觉效果
 - ✅ **悬浮抬起**：所有卡片 hover 上移 8px + 加深阴影
@@ -71,16 +74,35 @@
 />
 ```
 
-### 3.2 统计卡片
+### 3.2 统计卡片（紧凑布局）
 ```tsx
-<motion.div variants={containerVariants} initial="hidden" animate="visible">
-  <BentoCard>
-    <AnimatedCounter value={rankings.length} />
-  </BentoCard>
-</motion.div>
+<div className="flex items-center gap-4">
+  <div>
+    <Text>参赛人数</Text>
+    <div className="text-3xl font-bold">
+      <AnimatedCounter value={rankings.length} />
+    </div>
+  </div>
+  <div className="text-lg">人</div>
+</div>
 ```
 
-### 3.3 头像显示
+### 3.3 领奖台动态高度
+```tsx
+// 根据分数比例计算柱高（min 80px, max 160px）
+const maxScore = top3[0].score || 1;
+const getHeight = (score: number) => {
+  const ratio = score / maxScore;
+  return Math.round(80 + (160 - 80) * ratio);
+};
+
+<motion.div
+  animate={{ height: barHeights[i] }}
+  transition={{ duration: 0.6, ease: 'easeOut' }}
+/>
+```
+
+### 3.4 头像显示
 ```tsx
 {userAvatars[r.userId] ? (
   <Avatar src={userAvatars[r.userId]} size={28} />
@@ -91,7 +113,7 @@
 )}
 ```
 
-### 3.4 我的排名高亮
+### 3.5 我的排名高亮
 ```tsx
 rowClassName={(record) => {
   if (myRank && record.rank === myRank) {
@@ -101,15 +123,31 @@ rowClassName={(record) => {
 }}
 ```
 
+### 3.6 表格分页
+```tsx
+<Table
+  columns={columns}
+  dataSource={rankings.filter(r => r.rank > 3)}
+  pagination={{
+    pageSize: 10,
+    showSizeChanger: false,
+    showTotal: (total) => `共 ${total} 条`,
+  }}
+/>
+```
+
 ---
 
 ## 四、验收标准
 
 - [x] 竞赛选择器可切换不同竞赛排行榜
 - [x] 3 个统计卡片显示正确数据
+- [x] 统计卡片标签与数值并排显示（紧凑布局）
 - [x] 领奖台显示真实用户头像
+- [x] 领奖台柱高度根据分数比例动态计算
 - [x] 排行榜表格显示用户头像
 - [x] 我的排名行蓝色高亮
+- [x] 排行榜表格分页（每页 10 条）
 - [x] 悬浮抬起效果
 - [x] 交错入场动画
 - [x] 数字滚动动画

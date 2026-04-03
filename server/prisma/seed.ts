@@ -1,9 +1,52 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
 
 const prisma = new PrismaClient();
 
-// ---- Question Templates ----
+// Avatar URLs from randomuser.me (free, no API key needed)
+const avatarUrls = [
+  'https://randomuser.me/api/portraits/men/1.jpg',
+  'https://randomuser.me/api/portraits/women/2.jpg',
+  'https://randomuser.me/api/portraits/men/3.jpg',
+  'https://randomuser.me/api/portraits/women/4.jpg',
+  'https://randomuser.me/api/portraits/men/5.jpg',
+  'https://randomuser.me/api/portraits/women/6.jpg',
+  'https://randomuser.me/api/portraits/men/7.jpg',
+  'https://randomuser.me/api/portraits/women/8.jpg',
+  'https://randomuser.me/api/portraits/men/9.jpg',
+  'https://randomuser.me/api/portraits/women/10.jpg',
+  'https://randomuser.me/api/portraits/men/11.jpg',
+  'https://randomuser.me/api/portraits/women/12.jpg',
+  'https://randomuser.me/api/portraits/men/13.jpg',
+  'https://randomuser.me/api/portraits/women/14.jpg',
+  'https://randomuser.me/api/portraits/men/15.jpg',
+  'https://randomuser.me/api/portraits/women/16.jpg',
+  'https://randomuser.me/api/portraits/men/17.jpg',
+  'https://randomuser.me/api/portraits/women/18.jpg',
+  'https://randomuser.me/api/portraits/men/19.jpg',
+  'https://randomuser.me/api/portraits/women/20.jpg',
+];
+
+async function downloadImage(url: string, filepath: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const file = fs.createWriteStream(filepath);
+    https.get(url, (response) => {
+      response.pipe(file);
+      file.on('finish', () => {
+        file.close();
+        resolve(true);
+      });
+    }).on('error', () => {
+      fs.unlink(filepath, () => {});
+      resolve(false);
+    });
+  });
+}
+
+// Question templates
 const questionTemplates = [
   // Web安全
   { category: 'Web安全', difficulty: 'easy', type: 'single', title: '以下哪种攻击方式属于注入攻击？', options: ['A. SQL注入', 'B. XSS跨站脚本', 'C. CSRF跨站请求伪造', 'D. 中间人攻击'], answer: 'A. SQL注入', explanation: 'SQL注入是最典型的注入攻击，通过在输入中插入恶意SQL语句来操控数据库查询。', tags: ['SQL注入', '注入攻击'], score: 2 },
@@ -78,11 +121,35 @@ async function main() {
   await prisma.user.deleteMany();
   console.log('🧹 Cleaned existing data');
 
-  // ---- Users (20 users) ----
+  // Download avatars
+  const uploadsDir = path.join(__dirname, '../uploads/avatars');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  console.log('📸 Downloading avatar images...');
+  const avatarPaths: string[] = [];
+  for (let i = 0; i < avatarUrls.length; i++) {
+    const ext = '.jpg';
+    const filename = `avatar-${i + 1}${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+    const success = await downloadImage(avatarUrls[i], filepath);
+    if (success) {
+      avatarPaths.push(`/uploads/avatars/${filename}`);
+      console.log(`  ✅ Downloaded ${filename}`);
+    } else {
+      avatarPaths.push('');
+      console.log(`  ❌ Failed to download ${filename}`);
+    }
+  }
+
+  // ---- Users (20 users with avatars) ----
   const adminHash = await bcrypt.hash('admin123', 10);
   const userHash = await bcrypt.hash('user123', 10);
 
-  await prisma.user.create({ data: { username: 'admin', password: adminHash, role: 'admin' } });
+  await prisma.user.create({
+    data: { username: 'admin', password: adminHash, role: 'admin', avatar: avatarPaths[0] || undefined, experience: 1500, level: 6, consecutiveDays: 30, lastLoginDate: new Date() },
+  });
 
   const usernames = [
     '张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十',
@@ -91,13 +158,36 @@ async function main() {
   ];
 
   const createdUsers = await Promise.all(
-    usernames.map(name =>
-      prisma.user.create({ data: { username: name, password: userHash, role: 'user' } })
-    )
+    usernames.map((name, idx) => {
+      const exp = Math.floor(Math.random() * 1500);
+      const level = exp >= 1500 ? 6 : exp >= 1000 ? 5 : exp >= 600 ? 4 : exp >= 300 ? 3 : exp >= 100 ? 2 : 1;
+      const days = Math.floor(Math.random() * 30) + 1;
+      const lastLogin = new Date();
+      lastLogin.setDate(lastLogin.getDate() - Math.floor(Math.random() * 3));
+      const today = new Date().toDateString();
+      return prisma.user.create({
+        data: {
+          username: name,
+          password: userHash,
+          role: 'user',
+          avatar: avatarPaths[idx + 1] || undefined,
+          experience: exp,
+          level,
+          consecutiveDays: days,
+          lastLoginDate: lastLogin,
+          dailyGoals: JSON.stringify({
+            date: today,
+            practice: { current: Math.floor(Math.random() * 6), target: 5 },
+            contest: { current: Math.floor(Math.random() * 2), target: 1 },
+            review: { current: Math.floor(Math.random() * 4), target: 3 },
+          }),
+        },
+      });
+    })
   );
-  console.log(`✅ Created ${1 + createdUsers.length} users`);
+  console.log(`✅ Created ${1 + createdUsers.length} users with avatars`);
 
-  // ---- Questions (46 questions from templates) ----
+  // ---- Questions (46 questions) ----
   const createdQuestions: any[] = [];
   for (const qt of questionTemplates) {
     const created = await prisma.question.create({
@@ -117,7 +207,7 @@ async function main() {
   }
   console.log(`✅ Created ${createdQuestions.length} questions`);
 
-  // ---- Contests (8 contests: 2 ongoing, 3 upcoming, 3 finished) ----
+  // ---- Contests ----
   const now = new Date();
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
@@ -127,24 +217,16 @@ async function main() {
   const oneDayLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const twoDaysLater = new Date(now.getTime() + 48 * 60 * 60 * 1000);
   const threeDaysLater = new Date(now.getTime() + 72 * 60 * 60 * 1000);
-  const fourDaysLater = new Date(now.getTime() + 96 * 60 * 60 * 1000);
-
-  const totalScore = createdQuestions.reduce((sum, q) => sum + q.score, 0);
 
   const contests = [
-    // Finished contests (past)
     { title: '第一届网络安全入门赛', description: '面向新手的入门级竞赛，包含基础题目。', startTime: threeHoursAgo, endTime: twoHoursAgo, duration: 60, status: 'finished' as const, questions: createdQuestions.slice(0, 15) },
     { title: '第二届CTF理论赛', description: 'CTF理论赛，涵盖多个安全分类。', startTime: twoHoursAgo, endTime: oneHourAgo, duration: 60, status: 'finished' as const, questions: createdQuestions.slice(5, 25) },
     { title: '密码学基础测试', description: '密码学基础知识测试。', startTime: threeHoursAgo, endTime: oneHourAgo, duration: 30, status: 'finished' as const, questions: createdQuestions.filter(q => q.category === '密码学') },
-
-    // Ongoing contests
     { title: '第三届网络安全知识竞赛', description: '本次竞赛包含全部题目，涵盖Web安全、密码学、逆向工程、Misc、网络安全基础、操作系统安全、安全法规与合规等分类。答题时间60分钟，答对得分，答错不扣分。同分按用时排序。', startTime: now, endTime: oneHourLater, duration: 60, status: 'ongoing' as const, questions: createdQuestions },
     { title: 'Web安全专项赛', description: 'Web安全专项竞赛，包含Web安全分类题目。', startTime: now, endTime: twoHoursLater, duration: 45, status: 'ongoing' as const, questions: createdQuestions.filter(q => q.category === 'Web安全') },
-
-    // Upcoming contests
     { title: '密码学专项赛', description: '密码学专项赛，包含密码学分类题目。答题时间45分钟。', startTime: oneDayLater, endTime: twoDaysLater, duration: 45, status: 'upcoming' as const, questions: createdQuestions.filter(q => q.category === '密码学') },
     { title: '逆向工程挑战赛', description: '逆向工程专项挑战赛。', startTime: twoDaysLater, endTime: threeDaysLater, duration: 60, status: 'upcoming' as const, questions: createdQuestions.filter(q => q.category === '逆向工程') },
-    { title: '综合安全知识竞赛', description: '综合安全知识竞赛，覆盖所有分类。', startTime: threeDaysLater, endTime: fourDaysLater, duration: 90, status: 'upcoming' as const, questions: createdQuestions },
+    { title: '综合安全知识竞赛', description: '综合安全知识竞赛，覆盖所有分类。', startTime: threeDaysLater, endTime: new Date(threeDaysLater.getTime() + 90 * 60 * 1000), duration: 90, status: 'upcoming' as const, questions: createdQuestions },
   ];
 
   const createdContests: any[] = [];
@@ -170,33 +252,30 @@ async function main() {
   }
   console.log(`✅ Created ${createdContests.length} contests`);
 
-  // ---- Submissions for finished contests (simulate 20 users × 3 finished contests) ----
+  // ---- Submissions for finished contests ----
   const finishedContests = createdContests.filter((c: any) => c.status === 'finished');
   let submissionCount = 0;
 
   for (const contest of finishedContests) {
-    const contestQuestions = contest.contestQuestions || [];
-    const questionIds = contestQuestions.map((cq: any) => cq.questionId);
-    const questions = await prisma.question.findMany({
-      where: { id: { in: questionIds } },
+    const contestQuestions = await prisma.contestQuestion.findMany({
+      where: { contestId: contest.id },
+      include: { question: true },
     });
+    const questions = contestQuestions.map(cq => cq.question);
     const contestTotalScore = questions.reduce((sum, q) => sum + q.score, 0);
 
     for (const user of createdUsers) {
-      // Random score between 30% and 95% of total
       const scorePercent = 0.3 + Math.random() * 0.65;
       const score = Math.round(contestTotalScore * scorePercent);
       const correctCount = Math.round(questions.length * scorePercent);
-      const duration = 600 + Math.floor(Math.random() * 3000); // 10-60 minutes in seconds
+      const duration = 600 + Math.floor(Math.random() * 3000);
       const submittedAt = new Date(contest.startTime.getTime() + Math.random() * (contest.endTime.getTime() - contest.startTime.getTime()));
       const startedAt = new Date(submittedAt.getTime() - duration * 1000);
 
-      // Generate random answers
       const answers: Record<string, string> = {};
       for (const q of questions) {
         const correctAnswer = JSON.parse(q.answer);
         if (q.type === 'single' && Array.isArray(correctAnswer)) {
-          // Randomly pick correct or wrong
           if (Math.random() < scorePercent) {
             answers[q.id] = correctAnswer[0];
           } else {
@@ -232,34 +311,32 @@ async function main() {
   }
   console.log(`✅ Created ${submissionCount} submissions`);
 
-  // ---- Wrong Answers (for user 张三) ----
-  const zhangSan = createdUsers[0]; // 张三
-  const allQuestions = createdQuestions;
+  // ---- Wrong Answers ----
   let wrongCount = 0;
+  for (const user of createdUsers.slice(0, 5)) {
+    for (let i = 0; i < 10; i++) {
+      const q = createdQuestions[i % createdQuestions.length];
+      const correctAnswer = JSON.parse(q.answer);
+      const userAnswer = Array.isArray(correctAnswer) ? ['wrong'] : 'wrong';
 
-  // Create wrong answers for various questions
-  for (let i = 0; i < 30; i++) {
-    const q = allQuestions[i % allQuestions.length];
-    const correctAnswer = JSON.parse(q.answer);
-    const userAnswer = Array.isArray(correctAnswer) ? ['wrong'] : 'wrong';
-
-    await prisma.wrongAnswer.create({
-      data: {
-        userId: zhangSan.id,
-        questionId: q.id,
-        contestId: finishedContests[0]?.id || null,
-        userAnswer: JSON.stringify(userAnswer),
-        correctAnswer: JSON.stringify(correctAnswer),
-        errorCount: 1 + Math.floor(Math.random() * 5),
-      },
-    });
-    wrongCount++;
+      await prisma.wrongAnswer.create({
+        data: {
+          userId: user.id,
+          questionId: q.id,
+          contestId: finishedContests[0]?.id || null,
+          userAnswer: JSON.stringify(userAnswer),
+          correctAnswer: JSON.stringify(correctAnswer),
+          errorCount: 1 + Math.floor(Math.random() * 5),
+        },
+      });
+      wrongCount++;
+    }
   }
   console.log(`✅ Created ${wrongCount} wrong answers`);
 
   console.log('\n🎉 Seed completed!');
   console.log('\n📋 Summary:');
-  console.log(`   Users: ${1 + createdUsers.length}`);
+  console.log(`   Users: ${1 + createdUsers.length} (with avatars)`);
   console.log(`   Questions: ${createdQuestions.length}`);
   console.log(`   Contests: ${createdContests.length} (${finishedContests.length} finished, 2 ongoing, 3 upcoming)`);
   console.log(`   Submissions: ${submissionCount}`);

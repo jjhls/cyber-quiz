@@ -9,7 +9,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set) => ({
-  theme: 'dark',
+  theme: 'light',
   setTheme: (theme) => {
     set({ theme });
     document.documentElement.classList.toggle('dark', theme === 'dark');

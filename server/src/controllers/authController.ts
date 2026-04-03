@@ -59,12 +59,38 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ message: '用户名或密码错误' });
     }
 
+    // Update consecutive login days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let consecutiveDays = 1;
+    if (user.lastLoginDate) {
+      const lastLogin = new Date(user.lastLoginDate);
+      lastLogin.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((today.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 1) {
+        consecutiveDays = user.consecutiveDays + 1;
+      } else if (diffDays > 1) {
+        consecutiveDays = 1;
+      } else {
+        consecutiveDays = user.consecutiveDays; // Same day, don't increment
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        consecutiveDays,
+        lastLoginDate: today,
+      },
+    });
+
     // Set session
     (req.session as any).userId = user.id;
     (req.session as any).username = user.username;
     (req.session as any).role = user.role;
 
-    res.json({ id: user.id, username: user.username, role: user.role });
+    res.json({ id: user.id, username: user.username, role: user.role, avatar: user.avatar, consecutiveDays });
   } catch (error: any) {
     console.error('Login error:', error);
     res.status(500).json({ message: '登录失败，请稍后重试' });
@@ -80,7 +106,7 @@ export async function getMe(req: Request, res: Response) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.userId },
-      select: { id: true, username: true, role: true, createdAt: true },
+      select: { id: true, username: true, role: true, avatar: true, createdAt: true, experience: true, level: true, consecutiveDays: true },
     });
 
     if (!user) {

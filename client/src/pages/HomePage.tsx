@@ -1,16 +1,60 @@
-import { useEffect, useState, useMemo } from 'react';
-import { Card, Row, Col, Statistic, Typography, Tag, Button, Avatar, Spin } from 'antd';
-import { TrophyOutlined, BarChartOutlined, RiseOutlined, ClockCircleOutlined, ScheduleOutlined, UserOutlined } from '@ant-design/icons';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { Card, Row, Col, Statistic, Typography, Tag, Button, Avatar, Spin, Progress, Badge } from 'antd';
+import { TrophyOutlined, BarChartOutlined, ClockCircleOutlined, ScheduleOutlined, ThunderboltOutlined, FlagOutlined, BarChartOutlined as BarChartFilled, BookOutlined, RiseOutlined, ArrowUpOutlined, ArrowDownOutlined, FireOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useNavigate } from 'react-router-dom';
 import { statsApi, DashboardData } from '../api/stats';
-import { questionApi } from '../api/question';
-import { wrongBookApi } from '../api/question';
+import { userProfileApi, UserProfile, UserStatsTrend } from '../api/userProfile';
 
 const { Title, Text } = Typography;
+
+// Level config (based on experience points)
+const levels = [
+  { min: 0, name: '网络安全学徒', color: '#94a3b8', icon: '🌱' },
+  { min: 100, name: '安全爱好者', color: '#60a5fa', icon: '🔰' },
+  { min: 300, name: '安全研究员', color: '#34d399', icon: '🔬' },
+  { min: 600, name: '安全工程师', color: '#fbbf24', icon: '🛡️' },
+  { min: 1000, name: '安全专家', color: '#f97316', icon: '⚔️' },
+  { min: 1500, name: '网络安全大师', color: '#ef4444', icon: '👑' },
+];
+
+function getLevelInfo(experience: number) {
+  let currentLevel = levels[0];
+  let nextLevel = levels[1];
+  for (let i = levels.length - 1; i >= 0; i--) {
+    if (experience >= levels[i].min) {
+      currentLevel = levels[i];
+      nextLevel = levels[i + 1] || levels[levels.length - 1];
+      break;
+    }
+  }
+  return { currentLevel, nextLevel };
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 12) return { text: '早上好', emoji: '🌅' };
+  if (hour >= 12 && hour < 18) return { text: '下午好', emoji: '☀️' };
+  if (hour >= 18 && hour < 24) return { text: '晚上好', emoji: '🌆' };
+  return { text: '夜深了', emoji: '🌙' };
+}
+
+const categories = ['Web安全', '密码学', '逆向工程', 'Misc', '网络安全基础', '操作系统安全', '安全法规与合规'];
+
+// Security tips database
+const securityTips = [
+  { title: 'SQL注入防御', content: 'SQL注入是最常见的Web攻击方式之一。使用参数化查询可以有效防止SQL注入攻击。在编写数据库查询时，永远不要直接拼接用户输入。' },
+  { title: 'XSS攻击防护', content: '跨站脚本攻击（XSS）通过在网页中注入恶意脚本来窃取用户信息。对用户输入进行HTML编码和输出转义是基本的防护手段。' },
+  { title: '密码安全', content: '密码应该使用bcrypt等单向哈希算法存储，并添加盐值。避免使用MD5或SHA1等已被证明不安全的哈希算法。' },
+  { title: 'HTTPS的重要性', content: 'HTTPS通过SSL/TLS协议加密传输层数据，防止中间人攻击。所有涉及敏感信息传输的网站都应该启用HTTPS。' },
+  { title: 'CSRF防护', content: '跨站请求伪造（CSRF）攻击利用用户的登录状态发送恶意请求。使用CSRF Token和SameSite Cookie属性可以有效防御。' },
+  { title: '文件上传安全', content: '文件上传功能应该验证文件类型、限制文件大小、重命名上传文件，并将文件存储在Web根目录之外。' },
+  { title: '会话管理', content: '会话ID应该足够随机且不可预测。设置合理的会话超时时间，并在用户注销时销毁会话。' },
+  { title: '输入验证', content: '永远不要信任用户输入。在服务端和客户端都应该进行输入验证，使用白名单而非黑名单策略。' },
+];
 
 function BentoCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   const { theme } = useThemeStore();
@@ -27,72 +71,62 @@ function BentoCard({ children, className = '' }: { children: React.ReactNode; cl
   );
 }
 
-// Level config
-const levels = [
-  { min: 0, name: '网络安全学徒', color: '#94a3b8', icon: '🌱' },
-  { min: 3, name: '安全爱好者', color: '#60a5fa', icon: '🔰' },
-  { min: 5, name: '安全研究员', color: '#34d399', icon: '🔬' },
-  { min: 8, name: '安全工程师', color: '#fbbf24', icon: '🛡️' },
-  { min: 10, name: '安全专家', color: '#f97316', icon: '⚔️' },
-  { min: 15, name: '网络安全大师', color: '#ef4444', icon: '👑' },
-];
-
-function getLevel(submissions: number) {
-  return [...levels].reverse().find(l => submissions >= l.min) || levels[0];
-}
-
-const categories = ['Web安全', '密码学', '逆向工程', 'Misc', '网络安全基础', '操作系统安全', '安全法规与合规'];
-
 export default function HomePage() {
   const { user } = useAuthStore();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
   const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [statsTrend, setStatsTrend] = useState<UserStatsTrend | null>(null);
   const [categoryAccuracy, setCategoryAccuracy] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+  const [currentTip, setCurrentTip] = useState(0);
 
   useEffect(() => {
     Promise.all([
       statsApi.getDashboard(),
-      statsApi.getCategoryStats().catch(() => ({ categoryErrors: {} })),
-      questionApi.getList({ pageSize: 500 }).catch(() => ({ data: [] })),
-      wrongBookApi.getList().catch(() => []),
+      userProfileApi.getProfile().catch(() => null),
+      userProfileApi.getStatsTrend().catch(() => null),
     ])
-      .then(([dash, catStats, allQuestions, wrongAnswers]) => {
+      .then(([dash, prof, trend]) => {
         setDashboard(dash);
-
-        const questions = allQuestions.data || [];
-        const categoryTotal: Record<string, number> = {};
-        const categoryCorrect: Record<string, number> = {};
-
-        categories.forEach(c => {
-          categoryTotal[c] = 0;
-          categoryCorrect[c] = 0;
-        });
-
-        const catStatsTyped = catStats as { categoryErrors: Record<string, number> };
-        const categoryErrors = catStatsTyped.categoryErrors || {};
-        for (const cat of categories) {
-          categoryTotal[cat] = (categoryErrors[cat] || 0) + 1;
-          categoryCorrect[cat] = Math.max(0, categoryTotal[cat] - (categoryErrors[cat] || 0));
-        }
-
-        const hasData = Object.values(categoryErrors).some((v: number) => v > 0);
-        const accuracy: Record<string, number> = {};
-        for (const cat of categories) {
-          if (hasData) {
-            accuracy[cat] = Math.round((categoryCorrect[cat] / categoryTotal[cat]) * 100);
-          } else {
-            accuracy[cat] = 50;
-          }
-        }
-
-        setCategoryAccuracy(accuracy);
+        setProfile(prof);
+        setStatsTrend(trend);
       })
       .catch(err => console.error('Failed to load dashboard:', err))
       .finally(() => setLoading(false));
   }, []);
+
+  const loadCategoryAccuracy = useCallback(async () => {
+    try {
+      const catStats = await statsApi.getCategoryStats().catch(() => ({ categoryErrors: {} }));
+      const catStatsTyped = catStats as { categoryErrors: Record<string, number> };
+      const categoryErrors = catStatsTyped.categoryErrors || {};
+      const hasData = Object.values(categoryErrors).some((v: number) => v > 0);
+      const accuracy: Record<string, number> = {};
+      for (const cat of categories) {
+        if (hasData) {
+          const total = (categoryErrors[cat] || 0) + 1;
+          const correct = Math.max(0, total - (categoryErrors[cat] || 0));
+          accuracy[cat] = Math.round((correct / total) * 100);
+        } else {
+          accuracy[cat] = 50;
+        }
+      }
+      setCategoryAccuracy(accuracy);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategoryAccuracy();
+  }, [loadCategoryAccuracy]);
+
+  const greeting = getGreeting();
+  const levelInfo = profile ? getLevelInfo(profile.experience) : null;
+  const levelProgress = profile?.levelProgress?.progress || 0;
 
   const radarOption = useMemo(() => ({
     radar: {
@@ -162,60 +196,108 @@ export default function HomePage() {
     avgScore: 0, userRank: 0, totalUsers: 0, nextContest: null, recentSubmissions: [],
   };
 
-  const level = getLevel(d.totalSubmissions);
+  const trend = statsTrend ?? {
+    todaySubmissions: 0, yesterdaySubmissions: 0, submissionTrend: 0,
+    totalSubmissions: 0, avgScore: 0, userRank: 0, totalUsers: 0,
+  };
 
   return (
     <div className="space-y-6">
-      {/* Welcome Area */}
+      {/* Welcome Area - Upgraded */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border rounded-2xl p-6 card-highlight`}
+        className={`${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border rounded-2xl p-6 card-highlight relative overflow-hidden`}
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Avatar
-              size={56}
-              icon={<UserOutlined />}
-              className="bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xl font-bold"
-            >
-              {user?.username?.charAt(0)}
-            </Avatar>
-            <div>
-              <Title level={4} className={`!mb-1 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>
-                👋 欢迎回来，{user?.username}
-              </Title>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Tag color={level.color} className="text-xs px-2 py-0.5">
-                  {level.icon} {level.name}
-                </Tag>
-                <Text className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                  已参赛 {d.totalSubmissions} 次
-                </Text>
+        {/* Background decoration */}
+        <div className={`absolute top-0 right-0 w-64 h-64 opacity-5 pointer-events-none ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+          <svg viewBox="0 0 256 256" fill="none" stroke="currentColor" strokeWidth="0.5">
+            <circle cx="128" cy="128" r="120" />
+            <circle cx="128" cy="128" r="80" />
+            <circle cx="128" cy="128" r="40" />
+            <line x1="8" y1="128" x2="248" y2="128" />
+            <line x1="128" y1="8" x2="128" y2="248" />
+          </svg>
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            {/* Left: Avatar + Greeting + Level */}
+            <div className="flex items-center gap-4">
+              <Avatar
+                size={56}
+                src={profile?.avatar || undefined}
+                className="bg-gradient-to-br from-blue-500 to-violet-500 text-white text-xl font-bold"
+              >
+                {user?.username?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <div>
+                <Title level={4} className={`!mb-2 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>
+                  {greeting.emoji} {greeting.text}，{user?.username}
+                </Title>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Badge count={<FireOutlined style={{ color: '#f59e0b' }} />} size="small">
+                    <Tag color="default" className="text-xs px-2 py-0.5">
+                      连续 {profile?.consecutiveDays || 0} 天
+                    </Tag>
+                  </Badge>
+                  {levelInfo && (
+                    <Tag color={levelInfo.currentLevel.color} className="text-xs px-2 py-0.5">
+                      {levelInfo.currentLevel.icon} {levelInfo.currentLevel.name}
+                    </Tag>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Quick Actions */}
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              onClick={() => navigate('/practice')}
-              className={`${isDark ? 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-blue-400' : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-600'} rounded-xl`}
-            >
-              ⚡ 快速练习
-            </Button>
-            <Button
-              onClick={() => navigate('/contests')}
-              className={`${isDark ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-600'} rounded-xl`}
-            >
-              🏁 参加竞赛
-            </Button>
-            <Button
-              onClick={() => navigate('/rankings')}
-              className={`${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600'} rounded-xl`}
-            >
-              📊 查看排名
-            </Button>
+            {/* Right: Level Progress + Quick Actions */}
+            <div className="flex flex-col gap-4 lg:items-end">
+              {levelInfo && (
+                <div className="w-full lg:w-64">
+                  <div className="flex items-center justify-between mb-1">
+                    <Text className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      经验值 {profile?.experience || 0} / {levelInfo.nextLevel.min}
+                    </Text>
+                    <Text className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {levelProgress}%
+                    </Text>
+                  </div>
+                  <Progress
+                    percent={levelProgress}
+                    size="small"
+                    strokeColor="#3b82f6"
+                    trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                    showInfo={false}
+                  />
+                </div>
+              )}
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  onClick={() => navigate('/practice')}
+                  className={`${isDark ? 'bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-blue-400' : 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-600'} rounded-xl`}
+                >
+                  <ThunderboltOutlined /> 快速练习
+                </Button>
+                <Button
+                  onClick={() => navigate('/contests')}
+                  className={`${isDark ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-600'} rounded-xl`}
+                >
+                  <FlagOutlined /> 参加竞赛
+                </Button>
+                <Button
+                  onClick={() => navigate('/rankings')}
+                  className={`${isDark ? 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-400' : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-600'} rounded-xl`}
+                >
+                  <BarChartFilled /> 查看排名
+                </Button>
+                <Button
+                  onClick={() => navigate('/wrong-book')}
+                  className={`${isDark ? 'bg-red-500/10 hover:bg-red-500/20 border-red-500/30 text-red-400' : 'bg-red-50 hover:bg-red-100 border-red-200 text-red-600'} rounded-xl`}
+                >
+                  <BookOutlined /> 错题复习
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -226,9 +308,16 @@ export default function HomePage() {
           <BentoCard>
             <TrophyOutlined className={`absolute -right-4 -bottom-4 text-8xl rotate-12 ${isDark ? 'text-blue-500/5' : 'text-blue-500/10'}`} />
             <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <TrophyOutlined className="text-2xl text-blue-400" />
-                <Text className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>正在进行的竞赛</Text>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <TrophyOutlined className="text-2xl text-blue-400" />
+                  <Text className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>正在进行的竞赛</Text>
+                </div>
+                {trend.submissionTrend > 0 && (
+                  <Tag color="emerald" className="flex items-center gap-1">
+                    <ArrowUpOutlined /> +{trend.submissionTrend}
+                  </Tag>
+                )}
               </div>
               <Statistic
                 value={d.ongoingContests}
@@ -248,12 +337,12 @@ export default function HomePage() {
                 <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>平均得分</Text>
               </div>
               <Statistic
-                value={d.avgScore}
+                value={trend.avgScore}
                 precision={0}
                 valueStyle={{ color: '#34d399', fontSize: '2rem', fontWeight: 700 }}
               />
               <Text className={`text-xs mt-1 block flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                <RiseOutlined className="text-emerald-400" /> 共 {d.totalSubmissions} 次提交
+                <RiseOutlined className="text-emerald-400" /> 共 {trend.totalSubmissions} 次提交
               </Text>
             </div>
           </BentoCard>
@@ -261,18 +350,18 @@ export default function HomePage() {
 
         <Col xs={12} sm={12} lg={6}>
           <BentoCard>
-            <TrophyOutlined className={`absolute -right-3 -bottom-3 text-7xl rotate-12 ${isDark ? 'text-amber-500/5' : 'text-amber-500/10'}`} />
+            <SafetyCertificateOutlined className={`absolute -right-3 -bottom-3 text-7xl rotate-12 ${isDark ? 'text-amber-500/5' : 'text-amber-500/10'}`} />
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-2">
-                <TrophyOutlined className="text-xl text-amber-400" />
+                <SafetyCertificateOutlined className="text-xl text-amber-400" />
                 <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>当前排名</Text>
               </div>
               <Statistic
-                value={d.userRank}
+                value={trend.userRank}
                 valueStyle={{ color: '#fbbf24', fontSize: '2rem', fontWeight: 700 }}
                 prefix="#"
               />
-              <Text className={`text-xs mt-1 block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>/ {d.totalUsers} 人</Text>
+              <Text className={`text-xs mt-1 block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>/ {trend.totalUsers} 人</Text>
             </div>
           </BentoCard>
         </Col>
@@ -321,6 +410,100 @@ export default function HomePage() {
         </Col>
       </Row>
 
+      {/* Daily Tips + Learning Goals */}
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={12}>
+          <BentoCard>
+            <div className="flex items-center justify-between mb-3">
+              <Title level={5} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>💡 每日安全小贴士</Title>
+              <Button
+                type="link"
+                size="small"
+                onClick={() => setCurrentTip((currentTip + 1) % securityTips.length)}
+                className={isDark ? 'text-blue-400' : 'text-blue-600'}
+              >
+                换一条
+              </Button>
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentTip}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Tag color="blue" className="mb-2">{securityTips[currentTip].title}</Tag>
+                <Text className={isDark ? 'text-slate-300' : 'text-slate-600'}>{securityTips[currentTip].content}</Text>
+              </motion.div>
+            </AnimatePresence>
+          </BentoCard>
+        </Col>
+
+        <Col xs={24} md={12}>
+          <BentoCard>
+            <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>🎯 今日学习目标</Title>
+            <div className="space-y-4">
+              {profile?.dailyGoals && (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                        {profile.dailyGoals.practice.current >= profile.dailyGoals.practice.target ? '✅' : '⬜'} 完成 {profile.dailyGoals.practice.target} 道练习题
+                      </Text>
+                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {profile.dailyGoals.practice.current}/{profile.dailyGoals.practice.target}
+                      </Text>
+                    </div>
+                    <Progress
+                      percent={(profile.dailyGoals.practice.current / profile.dailyGoals.practice.target) * 100}
+                      size="small"
+                      strokeColor="#3b82f6"
+                      trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                      showInfo={false}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                        {profile.dailyGoals.contest.current >= profile.dailyGoals.contest.target ? '✅' : '⬜'} 参加 {profile.dailyGoals.contest.target} 场竞赛
+                      </Text>
+                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {profile.dailyGoals.contest.current}/{profile.dailyGoals.contest.target}
+                      </Text>
+                    </div>
+                    <Progress
+                      percent={(profile.dailyGoals.contest.current / profile.dailyGoals.contest.target) * 100}
+                      size="small"
+                      strokeColor="#3b82f6"
+                      trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                      showInfo={false}
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                        {profile.dailyGoals.review.current >= profile.dailyGoals.review.target ? '✅' : '⬜'} 复习 {profile.dailyGoals.review.target} 道错题
+                      </Text>
+                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {profile.dailyGoals.review.current}/{profile.dailyGoals.review.target}
+                      </Text>
+                    </div>
+                    <Progress
+                      percent={(profile.dailyGoals.review.current / profile.dailyGoals.review.target) * 100}
+                      size="small"
+                      strokeColor="#3b82f6"
+                      trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                      showInfo={false}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </BentoCard>
+        </Col>
+      </Row>
+
       {/* Recent Submissions & Announcement */}
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
@@ -328,7 +511,7 @@ export default function HomePage() {
             <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📋 最近提交</Title>
             {d.recentSubmissions.length > 0 ? (
               <div className="space-y-3">
-                {d.recentSubmissions.map((s) => (
+                {d.recentSubmissions.slice(0, 5).map((s) => (
                   <div key={s.id} className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
                     <div>
                       <Text className={`block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{s.contestTitle}</Text>

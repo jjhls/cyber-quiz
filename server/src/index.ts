@@ -15,6 +15,7 @@ import * as practiceController from './controllers/practiceController';
 import * as wrongBookController from './controllers/wrongBookController';
 import * as statsController from './controllers/statsController';
 import * as userController from './controllers/userController';
+import * as userProfileController from './controllers/userProfileController';
 
 // Middleware
 import { requireAuth, requireAdmin } from './middleware/auth';
@@ -31,6 +32,15 @@ const dataDir = path.join(__dirname, '../data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '../uploads/avatars');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Serve static files for avatars
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Middleware
 app.use(cors({
@@ -74,6 +84,14 @@ app.post('/api/auth/login', rateLimitAuth, authController.login);
 app.get('/api/auth/me', authController.getMe);
 app.post('/api/auth/logout', authController.logout);
 app.put('/api/auth/password', requireAuth, authController.changePassword);
+
+// ==================== User Profile Routes ====================
+app.get('/api/user/profile', requireAuth, userProfileController.getProfile);
+app.post('/api/user/experience', requireAuth, userProfileController.addExperience);
+app.put('/api/user/avatar', requireAuth, userProfileController.upload.single('avatar'), userProfileController.uploadAvatar);
+app.get('/api/user/daily-goals', requireAuth, userProfileController.getDailyGoals);
+app.put('/api/user/daily-goals', requireAuth, userProfileController.updateDailyGoal);
+app.get('/api/user/stats/trend', requireAuth, userProfileController.getStatsTrend);
 
 // ==================== Question Routes ====================
 app.get('/api/questions', requireAuth, questionController.getQuestions);

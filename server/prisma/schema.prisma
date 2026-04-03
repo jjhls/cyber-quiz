@@ -12,6 +12,12 @@ model User {
   username      String   @unique
   password      String
   role          String   @default("user")
+  avatar        String?
+  experience    Int      @default(0)
+  level         Int      @default(1)
+  consecutiveDays Int    @default(0)
+  lastLoginDate DateTime?
+  dailyGoals    String   @default("{}")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -21,6 +21,7 @@ export interface UserProfile {
     nextThreshold: number;
     progress: number;
   };
+  createdAt: string;
 }
 
 export interface UserStatsTrend {
@@ -33,6 +34,26 @@ export interface UserStatsTrend {
   totalUsers: number;
 }
 
+export interface ContestHistory {
+  id: string;
+  contestTitle: string;
+  score: number;
+  totalScore: number;
+  correctCount: number;
+  totalCount: number;
+  duration: number;
+  submittedAt: string;
+}
+
+export interface AnswerStats {
+  totalSubmissions: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  totalWrong: number;
+  accuracy: number;
+  categoryStats: Record<string, { correct: number; total: number }>;
+}
+
 export const userProfileApi = {
   getProfile: async () => {
     const res = await api.get<UserProfile>('/user/profile');
@@ -40,6 +61,22 @@ export const userProfileApi = {
   },
   getStatsTrend: async () => {
     const res = await api.get<UserStatsTrend>('/user/stats/trend');
+    return res.data;
+  },
+  getHistory: async (limit = 10) => {
+    const res = await api.get<ContestHistory[]>('/user/history', { params: { limit } });
+    return res.data;
+  },
+  getAnswers: async () => {
+    const res = await api.get<AnswerStats>('/user/answers');
+    return res.data;
+  },
+  getAvatars: async () => {
+    const res = await api.get<{ avatars: string[] }>('/avatars');
+    return res.data;
+  },
+  setAvatar: async (avatar: string) => {
+    const res = await api.put('/user/avatar', { avatar });
     return res.data;
   },
   addExperience: async (correct: number, count: number) => {

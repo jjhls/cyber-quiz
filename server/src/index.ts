@@ -88,7 +88,10 @@ app.put('/api/auth/password', requireAuth, authController.changePassword);
 // ==================== User Profile Routes ====================
 app.get('/api/user/profile', requireAuth, userProfileController.getProfile);
 app.post('/api/user/experience', requireAuth, userProfileController.addExperience);
-app.put('/api/user/avatar', requireAuth, userProfileController.upload.single('avatar'), userProfileController.uploadAvatar);
+app.put('/api/user/avatar', requireAuth, userProfileController.setAvatar);
+app.get('/api/avatars', requireAuth, userProfileController.getAvatars);
+app.get('/api/user/history', requireAuth, userProfileController.getUserHistory);
+app.get('/api/user/answers', requireAuth, userProfileController.getUserAnswers);
 app.get('/api/user/daily-goals', requireAuth, userProfileController.getDailyGoals);
 app.put('/api/user/daily-goals', requireAuth, userProfileController.updateDailyGoal);
 app.get('/api/user/stats/trend', requireAuth, userProfileController.getStatsTrend);

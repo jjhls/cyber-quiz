@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import prisma from '../utils/prisma';
-import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
@@ -9,26 +8,6 @@ const uploadsDir = path.join(__dirname, '../../uploads/avatars');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  },
-});
-
-export const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
-    }
-  },
-});
 
 // Get user profile with stats
 export async function getProfile(req: Request, res: Response) {
@@ -122,35 +101,164 @@ export async function addExperience(req: Request, res: Response) {
   }
 }
 
-// Upload avatar
-export async function uploadAvatar(req: Request, res: Response) {
+// Set avatar (select from built-in avatars)
+export async function setAvatar(req: Request, res: Response) {
   try {
     const session = req.session as any;
+    const { avatar } = req.body;
 
-    if (!req.file) {
-      return res.status(400).json({ message: '未上传文件' });
+    if (!avatar || typeof avatar !== 'string') {
+      return res.status(400).json({ message: '头像路径不能为空' });
     }
 
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    // Validate avatar path is within uploads directory
+    const normalizedPath = path.normalize(avatar);
+    if (!normalizedPath.startsWith('/uploads/avatars/')) {
+      return res.status(400).json({ message: '无效的头像路径' });
+    }
 
-    // Delete old avatar if exists
-    const user = await prisma.user.findUnique({ where: { id: session.userId } });
-    if (user?.avatar) {
-      const oldPath = path.join(__dirname, '../../', user.avatar);
-      if (fs.existsSync(oldPath)) {
-        fs.unlinkSync(oldPath);
-      }
+    // Check if file exists
+    const fullPath = path.join(__dirname, '../../', avatar);
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ message: '头像文件不存在' });
     }
 
     await prisma.user.update({
       where: { id: session.userId },
-      data: { avatar: avatarUrl },
+      data: { avatar },
     });
 
-    res.json({ avatar: avatarUrl });
+    res.json({ avatar });
   } catch (error: any) {
-    console.error('UploadAvatar error:', error);
-    res.status(500).json({ message: '上传头像失败' });
+    console.error('SetAvatar error:', error);
+    res.status(500).json({ message: '设置头像失败' });
+  }
+}
+
+// Get list of built-in avatars
+export async function getAvatars(req: Request, res: Response) {
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    const avatars = files
+      .filter(f => /\.(jpg|jpeg|png|gif|webp)$/i.test(f))
+      .map(f => `/uploads/avatars/${f}`)
+      .sort();
+
+    res.json({ avatars });
+  } catch (error: any) {
+    console.error('GetAvatars error:', error);
+    res.status(500).json({ message: '获取头像列表失败' });
+  }
+}
+
+// Get user contest history
+export async function getUserHistory(req: Request, res: Response) {
+  try {
+    const session = req.session as any;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const submissions = await prisma.submission.findMany({
+      where: { userId: session.userId },
+      include: { contest: { select: { title: true, totalScore: true } } },
+      orderBy: { submittedAt: 'desc' },
+      take: limit,
+    });
+
+    const history = submissions.map(s => ({
+      id: s.id,
+      contestTitle: s.contest.title,
+      score: s.score,
+      totalScore: s.contest.totalScore,
+      correctCount: s.correctCount,
+      totalCount: s.totalCount,
+      duration: s.duration,
+      submittedAt: s.submittedAt,
+    }));
+
+    res.json(history);
+  } catch (error: any) {
+    console.error('GetUserHistory error:', error);
+    res.status(500).json({ message: '获取参赛记录失败' });
+  }
+}
+
+// Get user answer statistics
+export async function getUserAnswers(req: Request, res: Response) {
+  try {
+    const session = req.session as any;
+
+    const [totalSubmissions, totalCorrect, totalQuestions, wrongAnswers] = await Promise.all([
+      prisma.submission.count({ where: { userId: session.userId } }),
+      prisma.submission.aggregate({
+        where: { userId: session.userId },
+        _sum: { correctCount: true },
+      }),
+      prisma.submission.aggregate({
+        where: { userId: session.userId },
+        _sum: { totalCount: true },
+      }),
+      prisma.wrongAnswer.aggregate({
+        where: { userId: session.userId },
+        _sum: { errorCount: true },
+      }),
+    ]);
+
+    const totalCorrectCount = totalCorrect._sum.correctCount || 0;
+    const totalQuestionCount = totalQuestions._sum.totalCount || 0;
+    const totalWrongCount = wrongAnswers._sum.errorCount || 0;
+    const accuracy = totalQuestionCount > 0 ? Math.round((totalCorrectCount / totalQuestionCount) * 100) : 0;
+
+    // Category distribution
+    const submissions = await prisma.submission.findMany({
+      where: { userId: session.userId },
+      include: { contest: { include: { contestQuestions: { include: { question: true } } } } },
+    });
+
+    const categoryStats: Record<string, { correct: number; total: number }> = {};
+    for (const sub of submissions) {
+      const answers = JSON.parse(sub.answers || '{}');
+      for (const cq of sub.contest.contestQuestions) {
+        const cat = cq.question.category;
+        if (!categoryStats[cat]) categoryStats[cat] = { correct: 0, total: 0 };
+        categoryStats[cat].total++;
+        try {
+          const correctAnswer = JSON.parse(cq.question.answer);
+          const userAnswer = answers[cq.questionId];
+          if (userAnswer) {
+            if (cq.question.type === 'single' || cq.question.type === 'truefalse') {
+              if (String(userAnswer).trim().toUpperCase() === String(correctAnswer).trim().toUpperCase()) {
+                categoryStats[cat].correct++;
+              }
+            } else if (cq.question.type === 'multiple') {
+              const ua = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+              const ca = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+              if (JSON.stringify(ua.sort()) === JSON.stringify(ca.sort())) {
+                categoryStats[cat].correct++;
+              }
+            } else if (cq.question.type === 'fillblank') {
+              const ca = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+              if (ca.some((a: string) => String(userAnswer).trim().toLowerCase() === String(a).trim().toLowerCase())) {
+                categoryStats[cat].correct++;
+              }
+            }
+          }
+        } catch {
+          // skip
+        }
+      }
+    }
+
+    res.json({
+      totalSubmissions,
+      totalCorrect: totalCorrectCount,
+      totalQuestions: totalQuestionCount,
+      totalWrong: totalWrongCount,
+      accuracy,
+      categoryStats,
+    });
+  } catch (error: any) {
+    console.error('GetUserAnswers error:', error);
+    res.status(500).json({ message: '获取答题统计失败' });
   }
 }
 

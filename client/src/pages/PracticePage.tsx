@@ -216,121 +216,288 @@ export default function PracticePage() {
   const optionSelected = 'border-blue-500 bg-blue-500/10';
   const selectClass = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
 
-  // Practice view
+  // Practice view - Optimized
   if (currentQ) {
     const diff = difficultyMap[currentQ.difficulty];
     const typeInfo = typeMap[currentQ.type];
     return (
-      <div className="space-y-6">
-        <Button onClick={() => { setCurrentQ(null); setShowResult(false); }} className={`rounded-xl mb-4 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
-          ← 返回题库
-        </Button>
+      <div className={`min-h-screen ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+        {/* Aurora Background Effect */}
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+          <div className={`absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-20 animate-pulse ${isDark ? 'bg-blue-500' : 'bg-blue-300'}`} style={{ animationDuration: '4s' }} />
+          <div className={`absolute top-1/3 -left-20 w-72 h-72 rounded-full blur-3xl opacity-15 ${isDark ? 'bg-violet-500' : 'bg-violet-300'}`} style={{ animation: 'pulse 6s ease-in-out infinite' }} />
+        </div>
 
-        <Card className={`rounded-2xl ${cardClass}`}>
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <Tag color={diff?.color}>{diff?.label}</Tag>
-            <Tag color={typeInfo?.color}>{typeInfo?.label}</Tag>
-            <Tag color="default">{currentQ.score}分</Tag>
-            <Tag color="cyan">{currentQ.category}</Tag>
-          </div>
-
-          <Title level={4} className={`!mb-6 whitespace-pre-wrap ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>{currentQ.title}</Title>
-
-          {currentQ.type === 'single' && (
-            <Radio.Group value={userAnswer} onChange={e => setUserAnswer(e.target.value)} className="w-full">
-              <div className="space-y-3">
-                {currentQ.options.map((opt, idx) => (
-                  <div key={idx} className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    userAnswer === opt ? optionSelected : optionBase
-                  }`}>
-                    <Radio value={opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>{opt}</Radio>
-                  </div>
-                ))}
-              </div>
-            </Radio.Group>
-          )}
-
-          {currentQ.type === 'multiple' && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Tag color="purple">多选题：选择所有正确答案</Tag>
-              </div>
-              {currentQ.options.map((opt, idx) => {
-                const selected = Array.isArray(userAnswer) && userAnswer.includes(opt);
-                const toggle = () => {
-                  const arr = Array.isArray(userAnswer) ? [...userAnswer] : [];
-                  const newAns = selected ? arr.filter(a => a !== opt) : [...arr, opt];
-                  setUserAnswer(newAns);
-                };
-                return (
-                  <div
-                    key={idx}
-                    onClick={toggle}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                      selected ? optionSelected : optionBase
-                    }`}
-                  >
-                    <Checkbox checked={selected} className={isDark ? 'text-slate-300' : 'text-slate-700'}>{opt}</Checkbox>
-                  </div>
-                );
-              })}
+        <div className="relative z-10 max-w-3xl mx-auto px-4 py-6">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between mb-6"
+          >
+            <Button
+              onClick={() => { setCurrentQ(null); setShowResult(false); loadQuestions(); }}
+              className={`rounded-xl ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+            >
+              ← 返回题库
+            </Button>
+            <div className="flex items-center gap-2">
+              <Tag color={diff?.color}>{diff?.label}</Tag>
+              <Tag color={typeInfo?.color}>{typeInfo?.label}</Tag>
             </div>
-          )}
+          </motion.div>
 
-          {currentQ.type === 'truefalse' && (
-            <Radio.Group value={userAnswer} onChange={e => setUserAnswer(e.target.value)} className="w-full">
-              <div className="space-y-3">
-                {['正确', '错误'].map(opt => (
-                  <div key={opt} className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    userAnswer === opt ? optionSelected : optionBase
-                  }`}>
-                    <Radio value={opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>{opt === '正确' ? '✅ 正确' : '❌ 错误'}</Radio>
-                  </div>
-                ))}
+          {/* Question Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <Card className={`rounded-2xl shadow-lg ${cardClass}`}>
+              {/* Question Info */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <Tag color="default">{currentQ.score}分</Tag>
+                <Tag color="cyan">{currentQ.category}</Tag>
+                {currentQ.tags.map((t: string) => <Tag key={t} className="text-xs">{t}</Tag>)}
               </div>
-            </Radio.Group>
-          )}
 
-          {currentQ.type === 'fillblank' && (
-            <Input
-              placeholder="请输入答案..."
-              value={userAnswer || ''}
-              onChange={e => setUserAnswer(e.target.value)}
-              className={`rounded-xl h-12 ${inputClass}`}
-              size="large"
-              onPressEnter={handleSubmit}
-            />
-          )}
+              {/* Question Title */}
+              <Title level={4} className={`!mb-8 whitespace-pre-wrap leading-relaxed ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>
+                {currentQ.title}
+              </Title>
 
-          <div className="mt-6 flex gap-3">
-            {!showResult ? (
-              <Button onClick={handleSubmit} className="bg-blue-500 hover:bg-blue-400 border-0 text-white rounded-xl">
-                提交答案
-              </Button>
-            ) : (
-              <div className="w-full">
-                <div className={`p-4 rounded-xl mb-4 ${result?.correct ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
-                  <div className="text-lg font-medium mb-2">
-                    {result?.correct ? '✅ 回答正确！' : '❌ 回答错误'}
-                  </div>
-                  {!result?.correct && (
-                    <div className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                      正确答案: {Array.isArray(result?.correctAnswer) ? result.correctAnswer.join(', ') : result?.correctAnswer}
-                    </div>
-                  )}
-                </div>
-                {result?.explanation && (
-                  <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                    <Text className={isDark ? 'text-slate-400' : 'text-slate-500'}>💡 解析: {result.explanation}</Text>
-                  </div>
+              {/* Options */}
+              <AnimatePresence mode="wait">
+                {currentQ.type === 'single' && (
+                  <motion.div
+                    key="single"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-3"
+                  >
+                    <Radio.Group value={userAnswer} onChange={e => setUserAnswer(e.target.value)} className="w-full">
+                      {currentQ.options.map((opt, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.08 }}
+                          whileHover={{ x: 4 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`p-4 rounded-xl border cursor-pointer transition-all mb-3 ${
+                            userAnswer === opt ? optionSelected : optionBase
+                          }`}
+                          onClick={() => setUserAnswer(opt)}
+                        >
+                          <Radio value={opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                            <span className="text-base">{opt}</span>
+                          </Radio>
+                        </motion.div>
+                      ))}
+                    </Radio.Group>
+                  </motion.div>
                 )}
-                <Button onClick={() => { setCurrentQ(null); setShowResult(false); loadQuestions(); }} className="bg-blue-500 hover:bg-blue-400 border-0 text-white rounded-xl">
-                  继续练习
-                </Button>
+
+                {currentQ.type === 'multiple' && (
+                  <motion.div
+                    key="multiple"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag color="purple">💡 多选题：选择所有正确答案</Tag>
+                    </div>
+                    {currentQ.options.map((opt, idx) => {
+                      const selected = Array.isArray(userAnswer) && userAnswer.includes(opt);
+                      const toggle = () => {
+                        const arr = Array.isArray(userAnswer) ? [...userAnswer] : [];
+                        const newAns = selected ? arr.filter(a => a !== opt) : [...arr, opt];
+                        setUserAnswer(newAns);
+                      };
+                      return (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.08 }}
+                          whileHover={{ x: 4 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`p-4 rounded-xl border cursor-pointer transition-all mb-3 ${
+                            selected ? optionSelected : optionBase
+                          }`}
+                          onClick={toggle}
+                        >
+                          <Checkbox checked={selected} className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                            <span className="text-base">{opt}</span>
+                          </Checkbox>
+                        </motion.div>
+                      );
+                    })}
+                  </motion.div>
+                )}
+
+                {currentQ.type === 'truefalse' && (
+                  <motion.div
+                    key="truefalse"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <Radio.Group value={userAnswer} onChange={e => setUserAnswer(e.target.value)} className="w-full">
+                      <div className="grid grid-cols-2 gap-4">
+                        {['正确', '错误'].map((opt, idx) => (
+                          <motion.div
+                            key={opt}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: idx * 0.1 }}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`p-6 rounded-xl border cursor-pointer transition-all text-center ${
+                              userAnswer === opt ? optionSelected : optionBase
+                            }`}
+                            onClick={() => setUserAnswer(opt)}
+                          >
+                            <div className="text-3xl mb-2">{opt === '正确' ? '✅' : '❌'}</div>
+                            <Radio value={opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                              <span className="text-lg font-medium">{opt}</span>
+                            </Radio>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </Radio.Group>
+                  </motion.div>
+                )}
+
+                {currentQ.type === 'fillblank' && (
+                  <motion.div
+                    key="fillblank"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag color="green">💡 填空题：不区分大小写</Tag>
+                    </div>
+                    <Input
+                      placeholder="请输入答案..."
+                      value={userAnswer || ''}
+                      onChange={e => setUserAnswer(e.target.value)}
+                      className={`rounded-xl h-14 text-lg ${inputClass}`}
+                      size="large"
+                      onPressEnter={handleSubmit}
+                      autoFocus
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Submit / Result */}
+              <div className="mt-8 pt-6 border-t border-dashed" style={{ borderColor: isDark ? '#334155' : '#e2e8f0' }}>
+                {!showResult ? (
+                  <div className="flex items-center justify-between">
+                    <Text className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {userAnswer ? '已作答，可以提交' : '请选择或输入答案'}
+                    </Text>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!userAnswer}
+                      className={`bg-blue-500 hover:bg-blue-400 border-0 text-white rounded-xl px-8 h-11 text-base ${!userAnswer ? 'opacity-50' : ''}`}
+                    >
+                      提交答案
+                    </Button>
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {/* Result Banner */}
+                    <motion.div
+                      initial={{ scale: 0.9 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 300 }}
+                      className={`p-5 rounded-xl mb-4 ${
+                        result?.correct
+                          ? 'bg-emerald-500/10 border-2 border-emerald-500/30'
+                          : 'bg-red-500/10 border-2 border-red-500/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-2xl">{result?.correct ? '🎉' : '😔'}</span>
+                        <div className="text-lg font-bold">
+                          {result?.correct ? (
+                            <span className="text-emerald-400">回答正确！</span>
+                          ) : (
+                            <span className="text-red-400">回答错误</span>
+                          )}
+                        </div>
+                      </div>
+                      {!result?.correct && (
+                        <div className={`mt-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                          正确答案: <span className="font-bold text-emerald-400">
+                            {Array.isArray(result?.correctAnswer) ? result.correctAnswer.join(', ') : result?.correctAnswer}
+                          </span>
+                        </div>
+                      )}
+                    </motion.div>
+
+                    {/* Explanation */}
+                    {result?.explanation && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-lg">💡</span>
+                          <Text className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                            <strong>解析：</strong>{result.explanation}
+                          </Text>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-between">
+                      <Button
+                        onClick={() => { setCurrentQ(null); setShowResult(false); loadQuestions(); }}
+                        className={`rounded-xl ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        返回列表
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          // Find next question from current list
+                          const currentIndex = questions.findIndex(q => q.id === currentQ.id);
+                          const nextQ = questions[currentIndex + 1];
+                          if (nextQ) {
+                            setCurrentQ(nextQ);
+                            setUserAnswer(null);
+                            setResult(null);
+                            setShowResult(false);
+                          } else {
+                            setCurrentQ(null);
+                            setShowResult(false);
+                            loadQuestions();
+                          }
+                        }}
+                        className="bg-blue-500 hover:bg-blue-400 border-0 text-white rounded-xl px-8 h-11 text-base"
+                      >
+                        下一题 →
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
               </div>
-            )}
-          </div>
-        </Card>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     );
   }

@@ -6,29 +6,18 @@ import https from 'https';
 
 const prisma = new PrismaClient();
 
-// Avatar URLs from randomuser.me (free, no API key needed)
-const avatarUrls = [
-  'https://randomuser.me/api/portraits/men/1.jpg',
-  'https://randomuser.me/api/portraits/women/2.jpg',
-  'https://randomuser.me/api/portraits/men/3.jpg',
-  'https://randomuser.me/api/portraits/women/4.jpg',
-  'https://randomuser.me/api/portraits/men/5.jpg',
-  'https://randomuser.me/api/portraits/women/6.jpg',
-  'https://randomuser.me/api/portraits/men/7.jpg',
-  'https://randomuser.me/api/portraits/women/8.jpg',
-  'https://randomuser.me/api/portraits/men/9.jpg',
-  'https://randomuser.me/api/portraits/women/10.jpg',
-  'https://randomuser.me/api/portraits/men/11.jpg',
-  'https://randomuser.me/api/portraits/women/12.jpg',
-  'https://randomuser.me/api/portraits/men/13.jpg',
-  'https://randomuser.me/api/portraits/women/14.jpg',
-  'https://randomuser.me/api/portraits/men/15.jpg',
-  'https://randomuser.me/api/portraits/women/16.jpg',
-  'https://randomuser.me/api/portraits/men/17.jpg',
-  'https://randomuser.me/api/portraits/women/18.jpg',
-  'https://randomuser.me/api/portraits/men/19.jpg',
-  'https://randomuser.me/api/portraits/women/20.jpg',
+// Cartoon Avatar URLs from DiceBear (free, no API key needed)
+// Using avataaars style for cartoon faces
+const avatarSeeds = [
+  'admin', 'zhangsan', 'lisi', 'wangwu', 'zhaoliu',
+  'qianqi', 'sunba', 'zhoujiu', 'wushi', 'zhengshiyi',
+  'wangshier', 'liushisan', 'chenshisi', 'yangshiwu', 'huangshiliu',
+  'linshiqi', 'heshiba', 'mashijiu', 'luoshi', 'liangshiyi', 'songshier',
 ];
+
+function getAvatarUrl(seed: string): string {
+  return `https://api.dicebear.com/7.x/avataaars/png?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+}
 
 async function downloadImage(url: string, filepath: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -127,16 +116,17 @@ async function main() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
-  console.log('📸 Downloading avatar images...');
+  console.log('📸 Downloading cartoon avatar images...');
   const avatarPaths: string[] = [];
-  for (let i = 0; i < avatarUrls.length; i++) {
-    const ext = '.jpg';
+  for (let i = 0; i < avatarSeeds.length; i++) {
+    const ext = '.png';
     const filename = `avatar-${i + 1}${ext}`;
     const filepath = path.join(uploadsDir, filename);
-    const success = await downloadImage(avatarUrls[i], filepath);
+    const url = getAvatarUrl(avatarSeeds[i]);
+    const success = await downloadImage(url, filepath);
     if (success) {
       avatarPaths.push(`/uploads/avatars/${filename}`);
-      console.log(`  ✅ Downloaded ${filename}`);
+      console.log(`  ✅ Downloaded ${filename} (${avatarSeeds[i]})`);
     } else {
       avatarPaths.push('');
       console.log(`  ❌ Failed to download ${filename}`);

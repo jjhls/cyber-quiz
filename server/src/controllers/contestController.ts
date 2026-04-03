@@ -180,7 +180,7 @@ export async function getContestRanking(req: Request, res: Response) {
 
     const submissions = await prisma.submission.findMany({
       where: { contestId: id },
-      include: { user: { select: { username: true } } },
+      include: { user: { select: { username: true, avatar: true } } },
       orderBy: [{ score: 'desc' }, { duration: 'asc' }],
     });
 
@@ -188,6 +188,7 @@ export async function getContestRanking(req: Request, res: Response) {
       rank: idx + 1,
       userId: s.userId,
       username: s.user.username,
+      avatar: s.user.avatar,
       score: s.score,
       totalScore: s.totalScore,
       correctCount: s.correctCount,

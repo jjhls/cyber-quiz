@@ -4,7 +4,6 @@ import { TrophyOutlined, RiseOutlined, ArrowUpOutlined, ArrowDownOutlined, UserO
 import { motion, AnimatePresence } from 'framer-motion';
 import { contestApi, Contest, ContestRanking } from '../api/contest';
 import { useThemeStore } from '../stores/themeStore';
-import { userProfileApi } from '../api/userProfile';
 
 const { Title, Text } = Typography;
 
@@ -74,7 +73,7 @@ function BentoCard({ children, className = '' }: { children: React.ReactNode; cl
 }
 
 // Podium component for top 3 with real avatars
-function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[]; isDark: boolean; userAvatars: Record<string, string> }) {
+function Podium({ rankings, isDark }: { rankings: ContestRanking[]; isDark: boolean }) {
   const top3 = rankings.slice(0, 3);
   if (top3.length < 3) return null;
 
@@ -97,9 +96,9 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
             {/* User info above the bar */}
             <div className="flex flex-col items-center mb-2">
               <div className="relative">
-                {userAvatars[r.userId] ? (
+                {r.avatar ? (
                   <Avatar
-                    src={userAvatars[r.userId]}
+                    src={r.avatar}
                     size={sizes[i]}
                     className="border-2 border-white/30 shadow-lg"
                   />
@@ -161,7 +160,6 @@ export default function RankingPage() {
   const [contests, setContests] = useState<Contest[]>([]);
   const [selectedContestId, setSelectedContestId] = useState<string | null>(null);
   const [rankings, setRankings] = useState<ContestRanking[]>([]);
-  const [userAvatars, setUserAvatars] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [myRank, setMyRank] = useState<number | null>(null);
 
@@ -188,23 +186,14 @@ export default function RankingPage() {
     contestApi.getRanking(selectedContestId)
       .then(data => {
         setRankings(data);
-        // Find my rank
-        userProfileApi.getProfile().then(profile => {
-          if (profile) {
-            const myEntry = data.find(r => r.userId === profile.id);
+        // Find my rank from auth store
+        import('../stores/authStore').then(({ useAuthStore }) => {
+          const { user } = useAuthStore.getState();
+          if (user) {
+            const myEntry = data.find(r => r.userId === user.id);
             setMyRank(myEntry ? myEntry.rank : null);
           }
         }).catch(() => {});
-
-        // Load avatars for top users
-        const avatarPromises = data.slice(0, 10).map(async (r) => {
-          try {
-            const profile = await userProfileApi.getProfile();
-            return null; // We'll load avatars differently
-          } catch {
-            return null;
-          }
-        });
       })
       .catch(() => setRankings([]))
       .finally(() => setLoading(false));
@@ -231,8 +220,8 @@ export default function RankingPage() {
       key: 'username',
       render: (u: string, r: ContestRanking) => (
         <div className="flex items-center gap-2">
-          {userAvatars[r.userId] ? (
-            <Avatar src={userAvatars[r.userId]} size={28} />
+          {r.avatar ? (
+            <Avatar src={r.avatar} size={28} />
           ) : (
             <Avatar size={28} className="bg-gradient-to-br from-blue-500 to-violet-500 text-xs">{u.charAt(0)}</Avatar>
           )}
@@ -271,7 +260,7 @@ export default function RankingPage() {
         <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>{new Date(t).toLocaleString('zh-CN')}</span>
       ),
     },
-  ], [isDark, userAvatars]);
+  ], [isDark]);
 
   if (loading) {
     return (
@@ -364,7 +353,7 @@ export default function RankingPage() {
         <>
           {/* Podium - Separate Card */}
           <Card className={`relative z-10 rounded-2xl card-highlight transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-            <Podium rankings={rankings} isDark={isDark} userAvatars={userAvatars} />
+            <Podium rankings={rankings} isDark={isDark} />
           </Card>
 
           {/* Ranking Table - Separate Card */}

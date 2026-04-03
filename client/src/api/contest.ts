@@ -30,6 +30,7 @@ export interface ContestRanking {
   rank: number;
   userId: string;
   username: string;
+  avatar: string | null;
   score: number;
   totalScore: number;
   correctCount: number;

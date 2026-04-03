@@ -7,6 +7,12 @@ import { contestApi, Contest } from '../api/contest';
 
 const { Title, Text } = Typography;
 
+const categoryGradients: Record<string, string> = {
+  ongoing: 'from-emerald-500/10 via-transparent to-transparent',
+  upcoming: 'from-blue-500/10 via-transparent to-transparent',
+  finished: 'from-slate-600/5 via-transparent to-transparent',
+};
+
 const statusConfig: Record<string, { color: string; label: string; gradient: string }> = {
   ongoing: { color: 'emerald', label: '进行中', gradient: 'from-emerald-500 to-emerald-400' },
   upcoming: { color: 'blue', label: '即将开始', gradient: 'from-blue-500 to-blue-400' },
@@ -169,6 +175,18 @@ export default function ContestListPage() {
               <Col xs={24} md={12} key={contest.id}>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
                   <Card className="bg-slate-900 border-slate-800 rounded-2xl hover:border-slate-700 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200 card-highlight relative overflow-hidden">
+                    {/* Background gradient overlay */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${categoryGradients[contest.status] || ''} pointer-events-none`} />
+                    {/* Decorative pattern */}
+                    <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none">
+                      <svg viewBox="0 0 128 128" fill="none" stroke="currentColor" strokeWidth="0.5">
+                        <circle cx="64" cy="64" r="60" />
+                        <circle cx="64" cy="64" r="40" />
+                        <circle cx="64" cy="64" r="20" />
+                        <line x1="4" y1="64" x2="124" y2="64" />
+                        <line x1="64" y1="4" x2="64" y2="124" />
+                      </svg>
+                    </div>
                     {/* Top status bar */}
                     <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config.gradient}`} />
 

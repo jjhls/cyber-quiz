@@ -10,8 +10,8 @@ import { useNavigate } from 'react-router-dom';
 const { Title, Text } = Typography;
 
 const difficultyMap: Record<string, { color: string; label: string }> = {
-  easy: { color: 'emerald', label: '简单' },
-  medium: { color: 'amber', label: '中等' },
+  easy: { color: 'green', label: '简单' },
+  medium: { color: 'orange', label: '中等' },
   hard: { color: 'red', label: '困难' },
 };
 

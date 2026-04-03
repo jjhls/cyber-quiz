@@ -78,17 +78,9 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
   const top3 = rankings.slice(0, 3);
   if (top3.length < 3) return null;
 
-  // Calculate heights based on score ratio (min h-20, max h-40)
-  const maxScore = top3[0].score || 1;
-  const getHeight = (score: number) => {
-    const ratio = score / maxScore;
-    const minH = 80; // h-20 = 5rem = 80px
-    const maxH = 160; // h-40 = 10rem = 160px
-    return Math.round(minH + (maxH - minH) * ratio);
-  };
-
+  // Fixed 3:2:1 height ratio (1st=180px, 2nd=120px, 3rd=60px)
   const order = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
-  const barHeights = order.map(r => getHeight(r.score));
+  const barHeights = [120, 180, 60]; // 2nd:120, 1st:180, 3rd:60
   const colors = ['from-slate-400 to-slate-500', 'from-yellow-400 to-amber-500', 'from-amber-600 to-amber-700'];
   const emojis = ['🥈', '🥇', '🥉'];
   const sizes = [56, 64, 56];
@@ -98,9 +90,8 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="mb-6"
     >
-      <div className="flex justify-center items-end gap-4 mb-2">
+      <div className="flex justify-center items-end gap-6 mb-2">
         {order.map((r, i) => (
           <motion.div
             key={r.userId}
@@ -136,14 +127,14 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
         ))}
       </div>
 
-      <div className="flex justify-center gap-2 items-end">
+      <div className="flex justify-center gap-3 items-end mt-4">
         {order.map((r, i) => (
           <motion.div
             key={r.userId}
             initial={{ height: 0 }}
             animate={{ height: barHeights[i] }}
             transition={{ duration: 0.6, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
-            className={`w-28 rounded-t-xl bg-gradient-to-t ${colors[i]} flex items-start justify-center pt-3`}
+            className={`w-32 rounded-t-xl bg-gradient-to-t ${colors[i]} flex items-start justify-center pt-3`}
             style={{ height: barHeights[i] }}
           >
             <span className="text-white font-bold text-lg opacity-80">#{i === 0 ? 2 : i === 1 ? 1 : 3}</span>
@@ -377,30 +368,36 @@ export default function RankingPage() {
           <EmptyRanking isDark={isDark} />
         </Card>
       ) : (
-        <Card className={`relative z-10 rounded-2xl card-highlight transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-          <Podium rankings={rankings} isDark={isDark} userAvatars={userAvatars} />
+        <>
+          {/* Podium - Separate Card */}
+          <Card className={`relative z-10 rounded-2xl card-highlight transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+            <Podium rankings={rankings} isDark={isDark} userAvatars={userAvatars} />
+          </Card>
 
+          {/* Ranking Table - Separate Card */}
           {rankings.length > 3 && (
-            <Table
-              columns={columns}
-              dataSource={rankings.filter(r => r.rank > 3)}
-              rowKey="rank"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: false,
-                showTotal: (total) => `共 ${total} 条`,
-                className: isDark ? 'text-slate-400' : 'text-slate-600',
-              }}
-              className="bg-transparent"
-              rowClassName={(record) => {
-                if (myRank && record.rank === myRank) {
-                  return isDark ? 'bg-blue-500/10' : 'bg-blue-50';
-                }
-                return '';
-              }}
-            />
+            <Card className={`relative z-10 rounded-2xl card-highlight transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+              <Table
+                columns={columns}
+                dataSource={rankings.filter(r => r.rank > 3)}
+                rowKey="rank"
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: false,
+                  showTotal: (total) => `共 ${total} 条`,
+                  className: isDark ? 'text-slate-400' : 'text-slate-600',
+                }}
+                className="bg-transparent"
+                rowClassName={(record) => {
+                  if (myRank && record.rank === myRank) {
+                    return isDark ? 'bg-blue-500/10' : 'bg-blue-50';
+                  }
+                  return '';
+                }}
+              />
+            </Card>
           )}
-        </Card>
+        </>
       )}
     </div>
   );

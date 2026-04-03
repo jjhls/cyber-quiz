@@ -399,7 +399,7 @@ export default function ProfilePage() {
           <BentoCard className="min-h-[280px]">
             <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>🎯 今日学习目标</Title>
             <div className="space-y-3">
-              {profile?.dailyGoals ? (
+              {profile?.dailyGoals?.practice?.target ? (
                 <>
                   <div>
                     <div className="flex items-center justify-between mb-1">

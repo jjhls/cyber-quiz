@@ -6,29 +6,30 @@ import https from 'https';
 
 const prisma = new PrismaClient();
 
-// Naruto Character Avatar URLs (MyAnimeList CDN - public & reliable)
+// Naruto-themed Avatar URLs using reliable DiceBear API
+// Using different styles for variety
 const avatarUrls = [
-  'https://cdn.myanimelist.net/images/characters/2/284121.jpg',  // 漩涡鸣人
-  'https://cdn.myanimelist.net/images/characters/9/284122.jpg',  // 宇智波佐助
-  'https://cdn.myanimelist.net/images/characters/9/69275.jpg',   // 春野樱
-  'https://cdn.myanimelist.net/images/characters/7/284129.jpg',  // 旗木卡卡西
-  'https://cdn.myanimelist.net/images/characters/10/171787.jpg', // 奈良鹿丸
-  'https://cdn.myanimelist.net/images/characters/3/284123.jpg',  // 日向雏田
-  'https://cdn.myanimelist.net/images/characters/2/284124.jpg',  // 日向宁次
-  'https://cdn.myanimelist.net/images/characters/5/284125.jpg',  // 李洛克
-  'https://cdn.myanimelist.net/images/characters/8/284126.jpg',  // 我爱罗
-  'https://cdn.myanimelist.net/images/characters/4/284127.jpg',  // 宇智波鼬
-  'https://cdn.myanimelist.net/images/characters/6/284128.jpg',  // 自来也
-  'https://cdn.myanimelist.net/images/characters/1/284130.jpg',  // 纲手
-  'https://cdn.myanimelist.net/images/characters/3/284131.jpg',  // 大蛇丸
-  'https://cdn.myanimelist.net/images/characters/5/284132.jpg',  // 波风水门
-  'https://cdn.myanimelist.net/images/characters/7/284133.jpg',  // 漩涡玖辛奈
-  'https://cdn.myanimelist.net/images/characters/9/284134.jpg',  // 宇智波带土
-  'https://cdn.myanimelist.net/images/characters/2/284135.jpg',  // 宇智波斑
-  'https://cdn.myanimelist.net/images/characters/4/284136.jpg',  // 千手柱间
-  'https://cdn.myanimelist.net/images/characters/6/284137.jpg',  // 千手扉间
-  'https://cdn.myanimelist.net/images/characters/8/284138.jpg',  // 猿飞日斩
-  'https://cdn.myanimelist.net/images/characters/10/284139.jpg', // 奇拉比
+  'https://api.dicebear.com/7.x/adventurer/png?seed=naruto&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=sasuke&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=sakura&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=kakashi&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=shikamaru&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=hinata&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=neji&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=rocklee&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=gaara&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=itachi&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=jiraiya&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=tsunade&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=orochimaru&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=minato&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=kushina&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=obito&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=madara&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=hashirama&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=tobirama&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=hiruzen&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/adventurer/png?seed=kirabi&backgroundColor=b6e3f4',
 ];
 
 async function downloadImage(url: string, filepath: string): Promise<boolean> {
@@ -128,10 +129,10 @@ async function main() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
-  console.log('📸 Downloading Naruto character avatar images...');
+  console.log('📸 Downloading avatar images...');
   const avatarPaths: string[] = [];
   for (let i = 0; i < avatarUrls.length; i++) {
-    const ext = '.jpg';
+    const ext = '.png';
     const filename = `avatar-${i + 1}${ext}`;
     const filepath = path.join(uploadsDir, filename);
     const success = await downloadImage(avatarUrls[i], filepath);

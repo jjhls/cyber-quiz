@@ -17,6 +17,7 @@ import {
   MoonOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -35,6 +36,15 @@ export default function MainLayout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const isDark = theme === 'dark';
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    import('../api/userProfile').then(({ userProfileApi }) => {
+      userProfileApi.getProfile().then(profile => {
+        setUserAvatar(profile.avatar);
+      }).catch(() => {});
+    });
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -103,7 +113,11 @@ export default function MainLayout() {
 
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space className="cursor-pointer hover:opacity-80 transition-opacity">
-              <Avatar icon={<UserOutlined />} className="bg-blue-500" />
+              {userAvatar ? (
+                <Avatar src={userAvatar} className="bg-blue-500" />
+              ) : (
+                <Avatar icon={<UserOutlined />} className="bg-blue-500" />
+              )}
               <Text className={`hidden sm:inline ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{user?.username}</Text>
             </Space>
           </Dropdown>
@@ -141,7 +155,11 @@ export default function MainLayout() {
                   : isDark ? 'text-slate-500' : 'text-slate-400'
               }`}
             >
-              {item.icon}
+              {item.key === '/profile' && userAvatar ? (
+                <Avatar src={userAvatar} size={20} className="bg-blue-500" />
+              ) : (
+                item.icon
+              )}
               <span className="text-xs">{item.label}</span>
             </button>
           ))}

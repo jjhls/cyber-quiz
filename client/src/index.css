@@ -2,14 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Theme Variables ===== */
+:root {
+  /* Light theme (default) */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --grid-color: rgba(59, 130, 246, 0.06);
+  --spotlight-color: rgba(59, 130, 246, 0.04);
+  --selection-bg: rgba(59, 130, 246, 0.2);
+  --selection-text: #0f172a;
+}
+
+.dark {
+  --bg-primary: #020617;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --bg-elevated: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #1e293b;
+  --border-strong: #334155;
+  --card-bg: #0f172a;
+  --card-border: #1e293b;
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+  --scrollbar-thumb-hover: #475569;
+  --grid-color: rgba(59, 130, 246, 0.04);
+  --spotlight-color: rgba(59, 130, 246, 0.06);
+  --selection-bg: rgba(59, 130, 246, 0.3);
+  --selection-text: #f1f5f9;
+}
+
 /* Global dark theme overrides for Ant Design */
 :root {
   --ant-color-primary: #3b82f6;
+  --ant-border-radius: 0.75rem;
+}
+
+.dark {
   --ant-color-bg-base: #0f172a;
   --ant-color-bg-container: #1e293b;
   --ant-color-text-base: #f1f5f9;
   --ant-color-border: #334155;
-  --ant-border-radius: 0.75rem;
+}
+
+.light {
+  --ant-color-bg-base: #ffffff;
+  --ant-color-bg-container: #ffffff;
+  --ant-color-text-base: #0f172a;
+  --ant-color-border: #e2e8f0;
 }
 
 body {
@@ -17,19 +71,22 @@ body {
   font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ===== Background Grid Pattern ===== */
 .bg-cyber-grid {
   background-image:
-    linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
 /* ===== Spotlight Gradient ===== */
 .bg-cyber-spotlight {
-  background: radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.06) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, var(--spotlight-color) 0%, transparent 60%);
 }
 
 /* ===== Card Top Highlight Bar ===== */
@@ -81,25 +138,23 @@ body {
   from { stroke-dashoffset: 283; }
 }
 
-/* ===== Number Count Up (handled by Framer Motion) ===== */
-
 /* ===== Custom Scrollbar ===== */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* ===== Selection Color ===== */
 ::selection {
-  background: rgba(59, 130, 246, 0.3);
-  color: #f1f5f9;
+  background: var(--selection-bg);
+  color: var(--selection-text);
 }

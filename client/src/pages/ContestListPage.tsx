@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Typography, Tag, Button, Row, Col, Input, Segmented, message, Modal } from 'antd';
+import { Card, Typography, Tag, Button, Row, Col, Input, Segmented, message } from 'antd';
 import { SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined, CalendarOutlined, FileTextOutlined, HourglassOutlined, CloseOutlined } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { contestApi, Contest } from '../api/contest';
+import { useThemeStore } from '../stores/themeStore';
 
 const { Title, Text } = Typography;
 
@@ -49,24 +50,26 @@ function StatusTag({ status }: { status: string }) {
 
 // Skeleton card for loading state
 function ContestSkeleton() {
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
   return (
-    <Card className="bg-slate-900 border-slate-800 rounded-2xl overflow-hidden">
+    <Card className={`rounded-2xl overflow-hidden transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
       <div className="animate-pulse">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-slate-700" />
-            <div className="w-40 h-5 bg-slate-700 rounded" />
+            <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
+            <div className={`w-40 h-5 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
           </div>
-          <div className="w-16 h-5 bg-slate-700 rounded-full" />
+          <div className={`w-16 h-5 rounded-full ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
         </div>
         <div className="space-y-2 mb-4">
-          <div className="w-full h-4 bg-slate-700 rounded" />
+          <div className={`w-full h-4 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
           <div className="flex gap-3">
-            <div className="w-24 h-4 bg-slate-700 rounded" />
-            <div className="w-20 h-4 bg-slate-700 rounded" />
+            <div className={`w-24 h-4 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
+            <div className={`w-20 h-4 rounded ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
           </div>
         </div>
-        <div className="w-full h-10 bg-slate-700 rounded-xl" />
+        <div className={`w-full h-10 rounded-xl ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`} />
       </div>
     </Card>
   );
@@ -75,6 +78,8 @@ function ContestSkeleton() {
 // Frosted glass contest detail modal
 function ContestDetailModal({ contest, open, onClose }: { contest: Contest | null; open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
 
   if (!contest) return null;
 
@@ -99,10 +104,10 @@ function ContestDetailModal({ contest, open, onClose }: { contest: Contest | nul
   };
 
   const getActionColor = () => {
-    if (contest.userSubmission) return 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30';
+    if (contest.userSubmission) return isDark ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200';
     if (contest.status === 'ongoing') return 'bg-emerald-500 hover:bg-emerald-400 text-white border-0';
     if (contest.status === 'upcoming') return 'bg-blue-500 hover:bg-blue-400 text-white border-0';
-    return 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0';
+    return isDark ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0' : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border-0';
   };
 
   return (
@@ -128,11 +133,12 @@ function ContestDetailModal({ contest, open, onClose }: { contest: Contest | nul
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
             <div
-              className="w-full max-w-lg pointer-events-auto rounded-3xl overflow-hidden border border-slate-700/50 shadow-2xl shadow-blue-500/10"
+              className="w-full max-w-lg pointer-events-auto rounded-3xl overflow-hidden border shadow-2xl shadow-blue-500/10 transition-colors duration-300"
               style={{
-                background: 'rgba(15, 23, 42, 0.85)',
+                background: isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.85)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
+                borderColor: isDark ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)',
               }}
             >
               {/* Top gradient bar */}
@@ -142,12 +148,12 @@ function ContestDetailModal({ contest, open, onClose }: { contest: Contest | nul
               <div className="p-6 pb-4">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1 pr-4">
-                    <Title level={4} className="!text-slate-100 !mb-2 leading-snug">{contest.title}</Title>
+                    <Title level={4} className={`!mb-2 leading-snug ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>{contest.title}</Title>
                     <StatusTag status={contest.status} />
                   </div>
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-xl hover:bg-slate-700/50 transition-colors text-slate-400 hover:text-slate-200"
+                    className={`p-2 rounded-xl transition-colors ${isDark ? 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-200' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-700'}`}
                   >
                     <CloseOutlined />
                   </button>
@@ -155,48 +161,48 @@ function ContestDetailModal({ contest, open, onClose }: { contest: Contest | nul
 
                 {/* Description */}
                 {contest.description && (
-                  <div className="p-3 bg-slate-800/50 rounded-xl mb-4">
-                    <Text className="text-slate-300 text-sm leading-relaxed">{contest.description}</Text>
+                  <div className={`p-3 rounded-xl mb-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                    <Text className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{contest.description}</Text>
                   </div>
                 )}
 
                 {/* Info Grid */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                  <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
                     <CalendarOutlined className="text-blue-400" />
                     <div>
-                      <Text className="text-slate-500 text-xs block">开始时间</Text>
-                      <Text className="text-slate-300 text-sm">{new Date(contest.startTime).toLocaleString('zh-CN')}</Text>
+                      <Text className={`text-xs block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>开始时间</Text>
+                      <Text className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{new Date(contest.startTime).toLocaleString('zh-CN')}</Text>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                  <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
                     <CalendarOutlined className="text-blue-400" />
                     <div>
-                      <Text className="text-slate-500 text-xs block">结束时间</Text>
-                      <Text className="text-slate-300 text-sm">{new Date(contest.endTime).toLocaleString('zh-CN')}</Text>
+                      <Text className={`text-xs block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>结束时间</Text>
+                      <Text className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{new Date(contest.endTime).toLocaleString('zh-CN')}</Text>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                  <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
                     <FileTextOutlined className="text-emerald-400" />
                     <div>
-                      <Text className="text-slate-500 text-xs block">题目数量</Text>
-                      <Text className="text-slate-300 text-sm">{contest.questionIds?.length || 0} 题</Text>
+                      <Text className={`text-xs block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>题目数量</Text>
+                      <Text className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{contest.questionIds?.length || 0} 题</Text>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                  <div className={`flex items-center gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
                     <HourglassOutlined className="text-amber-400" />
                     <div>
-                      <Text className="text-slate-500 text-xs block">答题时长</Text>
-                      <Text className="text-slate-300 text-sm">{contest.duration} 分钟</Text>
+                      <Text className={`text-xs block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>答题时长</Text>
+                      <Text className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{contest.duration} 分钟</Text>
                     </div>
                   </div>
                 </div>
 
                 {/* Score info */}
-                <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-xl mb-4">
+                <div className={`flex items-center justify-between p-3 rounded-xl mb-4 ${isDark ? 'bg-slate-800/30' : 'bg-slate-50'}`}>
                   <div className="flex items-center gap-2">
                     <TrophyOutlined className="text-amber-400" />
-                    <Text className="text-slate-300 text-sm">总分</Text>
+                    <Text className={`text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>总分</Text>
                   </div>
                   <Text className="text-amber-400 font-bold text-lg">{contest.totalScore} 分</Text>
                 </div>
@@ -226,7 +232,7 @@ function ContestDetailModal({ contest, open, onClose }: { contest: Contest | nul
               <div className="px-6 pb-6 pt-2 flex gap-3">
                 <Button
                   onClick={onClose}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl h-11"
+                  className={`flex-1 rounded-xl h-11 ${isDark ? 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700'}`}
                 >
                   关闭
                 </Button>
@@ -247,6 +253,8 @@ function ContestDetailModal({ contest, open, onClose }: { contest: Contest | nul
 
 export default function ContestListPage() {
   const navigate = useNavigate();
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('全部');
@@ -283,7 +291,7 @@ export default function ContestListPage() {
     if (contest.userSubmission) {
       return {
         label: `${contest.userSubmission.score}/${contest.userSubmission.totalScore}分`,
-        color: 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30',
+        color: isDark ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200',
         icon: <CheckCircleOutlined />,
       };
     }
@@ -294,20 +302,20 @@ export default function ContestListPage() {
       case 'upcoming':
         return { label: '查看详情 →', color: 'bg-blue-500 hover:bg-blue-400 text-white border-0', icon: null };
       case 'finished':
-        return { label: '查看成绩 →', color: 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0', icon: null };
+        return { label: '查看成绩 →', color: isDark ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0' : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border-0', icon: null };
       default:
-        return { label: '查看详情 →', color: 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0', icon: null };
+        return { label: '查看详情 →', color: isDark ? 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0' : 'bg-slate-200 hover:bg-slate-300 text-slate-700 border-0', icon: null };
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <Title level={3} className="!text-slate-100 !mb-0">🏁 竞赛列表</Title>
+        <Title level={3} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>🏁 竞赛列表</Title>
         <Input
-          prefix={<SearchOutlined className="text-slate-500" />}
+          prefix={<SearchOutlined className={isDark ? 'text-slate-500' : 'text-slate-400'} />}
           placeholder="搜索竞赛..."
-          className="w-full sm:w-64 bg-slate-800 border-slate-700 text-slate-100 rounded-xl"
+          className={`w-full sm:w-64 rounded-xl ${isDark ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}
         />
       </div>
 
@@ -315,7 +323,7 @@ export default function ContestListPage() {
         options={statusLabels}
         value={filter}
         onChange={(val) => setFilter(String(val))}
-        className="bg-slate-800 text-slate-300"
+        className={`transition-colors duration-300 ${isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'}`}
       />
 
       {loading ? (
@@ -327,19 +335,19 @@ export default function ContestListPage() {
           ))}
         </Row>
       ) : contests.length === 0 ? (
-        <Card className="bg-slate-900 border-slate-800 rounded-2xl">
+        <Card className={`rounded-2xl transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
           <div className="text-center py-12">
-            <svg className="w-16 h-16 mx-auto mb-3 text-slate-700" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg className={`w-16 h-16 mx-auto mb-3 ${isDark ? 'text-slate-700' : 'text-slate-300'}`} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="12" y="8" width="40" height="48" rx="4" />
               <line x1="20" y1="20" x2="44" y2="20" />
               <line x1="20" y1="28" x2="36" y2="28" />
               <line x1="20" y1="36" x2="40" y2="36" />
-              <circle cx="44" cy="44" r="14" fill="#0f172a" stroke="currentColor" />
+              <circle cx="44" cy="44" r="14" fill={isDark ? '#0f172a' : '#f8fafc'} stroke="currentColor" />
               <line x1="44" y1="38" x2="44" y2="50" />
               <line x1="38" y1="44" x2="50" y2="44" />
             </svg>
-            <Text className="text-slate-500 text-lg block mb-2">暂无竞赛</Text>
-            <Text className="text-slate-600">管理员创建竞赛后会在这里显示</Text>
+            <Text className={`text-lg block mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>暂无竞赛</Text>
+            <Text className={isDark ? 'text-slate-600' : 'text-slate-300'}>管理员创建竞赛后会在这里显示</Text>
           </div>
         </Card>
       ) : (
@@ -350,11 +358,15 @@ export default function ContestListPage() {
             return (
               <Col xs={24} md={12} key={contest.id}>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-                  <Card className="bg-slate-900 border-slate-800 rounded-2xl hover:border-slate-700 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200 card-highlight relative overflow-hidden">
+                  <Card className={`rounded-2xl hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200 card-highlight relative overflow-hidden ${
+                    isDark
+                      ? 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                      : 'bg-white border-slate-200 hover:border-blue-300'
+                  }`}>
                     {/* Background gradient overlay */}
                     <div className={`absolute inset-0 bg-gradient-to-br ${categoryGradients[contest.status] || ''} pointer-events-none`} />
                     {/* Decorative pattern */}
-                    <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none">
+                    <div className={`absolute top-0 right-0 w-32 h-32 pointer-events-none ${isDark ? 'opacity-5' : 'opacity-10'}`}>
                       <svg viewBox="0 0 128 128" fill="none" stroke="currentColor" strokeWidth="0.5">
                         <circle cx="64" cy="64" r="60" />
                         <circle cx="64" cy="64" r="40" />
@@ -368,7 +380,7 @@ export default function ContestListPage() {
 
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <Title level={5} className="!text-slate-100 !mb-0">{contest.title}</Title>
+                        <Title level={5} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>{contest.title}</Title>
                       </div>
                       <div className="flex gap-1">
                         {contest.userSubmission && (
@@ -380,16 +392,16 @@ export default function ContestListPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-2 text-sm text-slate-400 mb-4">
+                    <div className={`space-y-2 text-sm mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                       <div className="flex items-center gap-2">
                         <ClockCircleOutlined />
-                        <Text className="text-slate-400">
+                        <Text className={isDark ? 'text-slate-400' : 'text-slate-500'}>
                           {new Date(contest.startTime).toLocaleString('zh-CN')} ~ {new Date(contest.endTime).toLocaleString('zh-CN')}
                         </Text>
                       </div>
                       <div className="flex gap-3">
-                        <Text className="text-slate-400">📋 {contest.questionIds?.length || 0}题 | {contest.totalScore}分</Text>
-                        <Text className="text-slate-400">⏱ {contest.duration}分钟</Text>
+                        <Text className={isDark ? 'text-slate-400' : 'text-slate-500'}>📋 {contest.questionIds?.length || 0}题 | {contest.totalScore}分</Text>
+                        <Text className={isDark ? 'text-slate-400' : 'text-slate-500'}>⏱ {contest.duration}分钟</Text>
                       </div>
                     </div>
 

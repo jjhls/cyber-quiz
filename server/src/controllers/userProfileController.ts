@@ -118,7 +118,8 @@ export async function setAvatar(req: Request, res: Response) {
     }
 
     // Check if file exists
-    const fullPath = path.join(__dirname, '../../', avatar);
+    const relativePath = avatar.startsWith('/') ? avatar.slice(1) : avatar;
+    const fullPath = path.join(__dirname, '../../', relativePath);
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ message: '头像文件不存在' });
     }

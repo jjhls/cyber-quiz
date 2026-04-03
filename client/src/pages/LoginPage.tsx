@@ -15,7 +15,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/');
+    if (isAuthenticated) {
+      // Check if the user is an admin and redirect accordingly
+      const store = useAuthStore.getState();
+      if (store.user?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+    }
   }, [isAuthenticated, navigate]);
 
   const onFinish = async (values: { username: string; password: string }) => {
@@ -25,7 +33,12 @@ export default function LoginPage() {
       const user = await authApi.login(values.username, values.password);
       login(user);
       message.success('登录成功');
-      navigate('/');
+      // Redirect based on role
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || '登录失败，请检查用户名和密码');
     } finally {

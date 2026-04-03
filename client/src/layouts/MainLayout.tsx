@@ -12,6 +12,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
+  DashboardOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 
@@ -47,6 +48,10 @@ export default function MainLayout() {
     { key: 'profile', icon: <UserOutlined />, label: '个人中心', onClick: () => navigate('/profile') },
     { key: 'wrong-book', icon: <BookOutlined />, label: '错题本', onClick: () => navigate('/wrong-book') },
     { key: 'history', icon: <BarChartOutlined />, label: '历史记录', onClick: () => navigate('/history') },
+    ...(user?.role === 'admin' ? [
+      { type: 'divider' as const },
+      { key: 'admin', icon: <DashboardOutlined />, label: '🛡️ 管理后台', onClick: () => navigate('/admin') },
+    ] : []),
     { type: 'divider' as const },
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true, onClick: handleLogout },
   ];

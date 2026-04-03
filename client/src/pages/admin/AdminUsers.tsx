@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Typography, Table, Tag, Button, Space, Modal, Form, Select, message, Popconfirm } from 'antd';
+import { Typography, Table, Tag, Button, Space, Modal, Form, Select, message } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import api from '../../api';
+import { useThemeStore } from '../../stores/themeStore';
 
 const { Title, Text } = Typography;
 
@@ -14,6 +15,8 @@ interface User {
 }
 
 export default function AdminUsers() {
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -56,12 +59,12 @@ export default function AdminUsers() {
   };
 
   const columns = [
-    { title: '用户名', dataIndex: 'username', key: 'username', render: (v: string) => <Text className="text-slate-300">{v}</Text> },
+    { title: '用户名', dataIndex: 'username', key: 'username', render: (v: string) => <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>{v}</Text> },
     { title: '角色', dataIndex: 'role', key: 'role', width: 120, render: (v: string) => (
       <Tag color={v === 'admin' ? 'red' : 'blue'}>{v === 'admin' ? '管理员' : '参赛者'}</Tag>
     )},
     { title: '注册时间', dataIndex: 'createdAt', key: 'createdAt', width: 200, render: (v: string) => (
-      <Text className="text-slate-500">{new Date(v).toLocaleString('zh-CN')}</Text>
+      <Text className={isDark ? 'text-slate-500' : 'text-slate-400'}>{new Date(v).toLocaleString('zh-CN')}</Text>
     )},
     {
       title: '操作',
@@ -83,7 +86,7 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <Title level={3} className="!text-slate-100">👥 用户管理</Title>
+      <Title level={3} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>👥 用户管理</Title>
 
       <Table
         columns={columns}
@@ -91,26 +94,26 @@ export default function AdminUsers() {
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 人` }}
-        className="bg-slate-900 rounded-2xl"
+        className={`rounded-2xl ${isDark ? 'bg-slate-900' : 'bg-white'}`}
       />
 
       <Modal
         title="编辑用户角色"
         open={modalOpen}
         onOk={handleModalOk}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => { setModalOpen(false); form.resetFields(); }}
         okText="保存"
         cancelText="取消"
       >
         <Form form={form} layout="vertical" className="mt-4">
           <Form.Item label="用户名">
-            <Text className="text-slate-300">{editingUser?.username}</Text>
+            <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>{editingUser?.username}</Text>
           </Form.Item>
           <Form.Item name="role" label="角色" rules={[{ required: true }]}>
             <Select options={[
               { value: 'user', label: '参赛者' },
               { value: 'admin', label: '管理员' },
-            ]} className="bg-slate-800" />
+            ]} className={isDark ? 'bg-slate-800' : 'bg-slate-50'} />
           </Form.Item>
         </Form>
       </Modal>

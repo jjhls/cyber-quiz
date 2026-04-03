@@ -3,12 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Typography, Button, Tag, Descriptions, Space, Spin, message } from 'antd';
 import { ArrowLeftOutlined, ClockCircleOutlined, FileTextOutlined } from '@ant-design/icons';
 import { contestApi, Contest } from '../api/contest';
+import { useThemeStore } from '../stores/themeStore';
 
 const { Title, Text } = Typography;
 
 export default function ContestDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
   const [contest, setContest] = useState<Contest | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -21,8 +24,8 @@ export default function ContestDetailPage() {
     }
   }, [id]);
 
-  if (loading) return <div className="flex justify-center py-20"><Spin size="large" /></div>;
-  if (!contest) return <div className="text-center py-20"><Text className="text-slate-500">竞赛不存在</Text></div>;
+  if (loading) return <div className={`flex justify-center py-20 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}><Spin size="large" /></div>;
+  if (!contest) return <div className="text-center py-20"><Text className={isDark ? 'text-slate-500' : 'text-slate-400'}>竞赛不存在</Text></div>;
 
   const statusConfig: Record<string, { color: string; label: string }> = {
     ongoing: { color: 'emerald', label: '进行中' },
@@ -38,10 +41,10 @@ export default function ContestDetailPage() {
         返回竞赛列表
       </Button>
 
-      <Card className="bg-slate-900 border-slate-800 rounded-2xl">
+      <Card className={`rounded-2xl transition-colors duration-300 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
         <div className="flex items-start justify-between mb-6">
           <div>
-            <Title level={3} className="!text-slate-100 !mb-2">{contest.title}</Title>
+            <Title level={3} className={`!mb-2 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>{contest.title}</Title>
             <Tag color={config.color}>{config.label}</Tag>
             <Tag color="default">个人赛</Tag>
           </div>
@@ -57,7 +60,7 @@ export default function ContestDetailPage() {
           )}
         </div>
 
-        <Descriptions column={{ xs: 1, sm: 2 }} className="text-slate-300">
+        <Descriptions column={{ xs: 1, sm: 2 }}>
           <Descriptions.Item label={<><ClockCircleOutlined /> 时间</>}>
             {new Date(contest.startTime).toLocaleString('zh-CN')} ~ {new Date(contest.endTime).toLocaleString('zh-CN')}
           </Descriptions.Item>
@@ -67,8 +70,8 @@ export default function ContestDetailPage() {
         </Descriptions>
 
         {contest.description && (
-          <div className="mt-6 p-4 bg-slate-800/50 rounded-xl">
-            <Text className="text-slate-300">{contest.description}</Text>
+          <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+            <Text className={isDark ? 'text-slate-300' : 'text-slate-600'}>{contest.description}</Text>
           </div>
         )}
       </Card>

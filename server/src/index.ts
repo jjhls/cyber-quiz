@@ -95,6 +95,7 @@ app.get('/api/user/answers', requireAuth, userProfileController.getUserAnswers);
 app.get('/api/user/daily-goals', requireAuth, userProfileController.getDailyGoals);
 app.put('/api/user/daily-goals', requireAuth, userProfileController.updateDailyGoal);
 app.get('/api/user/stats/trend', requireAuth, userProfileController.getStatsTrend);
+app.get('/api/user/practice-stats', requireAuth, userProfileController.getPracticeStats);
 
 // ==================== Question Routes ====================
 app.get('/api/questions', requireAuth, questionController.getQuestions);

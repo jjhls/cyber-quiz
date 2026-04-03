@@ -9,10 +9,14 @@ export async function getPracticeQuestions(req: Request, res: Response) {
     const pageSize = parseInt(req.query.pageSize as string) || 20;
     const category = req.query.category as string;
     const difficulty = req.query.difficulty as string;
+    const type = req.query.type as string;
+    const search = req.query.search as string;
 
     const where: any = { deleted: false };
     if (category) where.category = category;
     if (difficulty) where.difficulty = difficulty;
+    if (type) where.type = type;
+    if (search) where.title = { contains: search };
 
     const [questions, total] = await Promise.all([
       prisma.question.findMany({

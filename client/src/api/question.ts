@@ -49,7 +49,7 @@ export const questionApi = {
 };
 
 export const practiceApi = {
-  getList: async (params?: { category?: string; difficulty?: string; page?: number; pageSize?: number }) => {
+  getList: async (params?: { category?: string; difficulty?: string; type?: string; search?: string; page?: number; pageSize?: number }) => {
     const res = await api.get<QuestionListResult>('/practice', { params });
     return res.data;
   },

@@ -388,3 +388,96 @@ export async function getStatsTrend(req: Request, res: Response) {
     res.status(500).json({ message: '获取趋势数据失败' });
   }
 }
+
+// Get practice statistics
+export async function getPracticeStats(req: Request, res: Response) {
+  try {
+    const session = req.session as any;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 24 * 60 * 60 * 1000);
+
+    // Count practice submissions (we'll use wrong answers as a proxy for practice activity)
+    const [todayWrong, totalWrong, totalSubmissions] = await Promise.all([
+      prisma.wrongAnswer.count({
+        where: { userId: session.userId, createdAt: { gte: todayStart } },
+      }),
+      prisma.wrongAnswer.count({
+        where: { userId: session.userId },
+      }),
+      prisma.submission.count({
+        where: { userId: session.userId },
+      }),
+    ]);
+
+    // Calculate today's practice count from submissions today
+    const todaySubmissions = await prisma.submission.count({
+      where: { userId: session.userId, submittedAt: { gte: todayStart } },
+    });
+
+    // Calculate today's correct rate from today's submissions
+    const todaySubs = await prisma.submission.findMany({
+      where: { userId: session.userId, submittedAt: { gte: todayStart } },
+      select: { correctCount: true, totalCount: true },
+    });
+
+    const todayCorrect = todaySubs.reduce((sum, s) => sum + s.correctCount, 0);
+    const todayTotal = todaySubs.reduce((sum, s) => sum + s.totalCount, 0);
+    const todayAccuracy = todayTotal > 0 ? Math.round((todayCorrect / todayTotal) * 100) : 0;
+
+    // Calculate overall accuracy
+    const allSubs = await prisma.submission.findMany({
+      where: { userId: session.userId },
+      select: { correctCount: true, totalCount: true },
+    });
+    const overallCorrect = allSubs.reduce((sum, s) => sum + s.correctCount, 0);
+    const overallTotal = allSubs.reduce((sum, s) => sum + s.totalCount, 0);
+    const overallAccuracy = overallTotal > 0 ? Math.round((overallCorrect / overallTotal) * 100) : 0;
+
+    // Calculate consecutive practice days (simplified: count days with submissions)
+    const allSubmissionDates = await prisma.submission.findMany({
+      where: { userId: session.userId },
+      select: { submittedAt: true },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    let consecutiveDays = 0;
+    if (allSubmissionDates.length > 0) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let checkDate = new Date(today);
+
+      // Check if there's a submission today or yesterday to start counting
+      const lastSubmission = new Date(allSubmissionDates[0].submittedAt);
+      lastSubmission.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((checkDate.getTime() - lastSubmission.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 1) {
+        // Count consecutive days backwards
+        const submissionDays = new Set(
+          allSubmissionDates.map(s => {
+            const d = new Date(s.submittedAt);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+          })
+        );
+
+        while (submissionDays.has(checkDate.getTime())) {
+          consecutiveDays++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        }
+      }
+    }
+
+    res.json({
+      todaySubmissions,
+      todayAccuracy,
+      overallAccuracy,
+      consecutiveDays,
+      totalWrong,
+    });
+  } catch (error: any) {
+    console.error('GetPracticeStats error:', error);
+    res.status(500).json({ message: '获取练习统计失败' });
+  }
+}

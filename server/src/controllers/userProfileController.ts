@@ -112,13 +112,14 @@ export async function setAvatar(req: Request, res: Response) {
     }
 
     // Validate avatar path is within uploads directory
-    const normalizedPath = path.normalize(avatar);
+    // Use replace to handle Windows backslashes correctly
+    const normalizedPath = avatar.replace(/\\/g, '/');
     if (!normalizedPath.startsWith('/uploads/avatars/')) {
       return res.status(400).json({ message: '无效的头像路径' });
     }
 
     // Check if file exists
-    const relativePath = avatar.startsWith('/') ? avatar.slice(1) : avatar;
+    const relativePath = normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath;
     const fullPath = path.join(__dirname, '../../', relativePath);
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ message: '头像文件不存在' });

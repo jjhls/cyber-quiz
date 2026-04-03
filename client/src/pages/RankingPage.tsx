@@ -78,9 +78,9 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
   const top3 = rankings.slice(0, 3);
   if (top3.length < 3) return null;
 
-  // Fixed 3:2:1 height ratio (1st=240px, 2nd=160px, 3rd=80px)
+  // Fixed 3:2:1 height ratio (1st=120px, 2nd=80px, 3rd=40px)
   const order = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
-  const barHeights = [160, 240, 80]; // 2nd:160, 1st:240, 3rd:80
+  const barHeights = [80, 120, 40]; // 2nd:80, 1st:120, 3rd:40
   const colors = ['from-slate-400 to-slate-500', 'from-yellow-400 to-amber-500', 'from-amber-600 to-amber-700'];
   const emojis = ['🥈', '🥇', '🥉'];
   const sizes = [48, 56, 48];
@@ -91,45 +91,47 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="flex justify-center items-end gap-3">
+      <div className="flex justify-center items-end gap-4">
         {order.map((r, i) => (
-          <motion.div
-            key={r.userId}
-            initial={{ height: 0 }}
-            animate={{ height: barHeights[i] }}
-            transition={{ duration: 0.6, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
-            className={`relative w-36 rounded-t-xl bg-gradient-to-t ${colors[i]} flex flex-col items-center justify-end pb-4 pt-2 overflow-hidden`}
-            style={{ height: barHeights[i] }}
-          >
-            {/* Medal emoji at top */}
-            <span className="absolute top-2 text-xl">{emojis[i]}</span>
-
-            {/* User info inside the bar */}
-            <div className="flex flex-col items-center mt-2">
+          <div key={r.userId} className="flex flex-col items-center">
+            {/* User info above the bar */}
+            <div className="flex flex-col items-center mb-2">
               <div className="relative">
                 {userAvatars[r.userId] ? (
                   <Avatar
                     src={userAvatars[r.userId]}
                     size={sizes[i]}
-                    className="border-2 border-white/50"
+                    className="border-2 border-white/30 shadow-lg"
                   />
                 ) : (
                   <Avatar
                     size={sizes[i]}
-                    className="bg-white/20 text-white font-bold backdrop-blur-sm"
+                    className="bg-gradient-to-br from-blue-500 to-violet-500 text-white font-bold shadow-lg"
                     style={{ fontSize: sizes[i] * 0.4 }}
                   >
                     {r.username.charAt(0)}
                   </Avatar>
                 )}
+                <span className="absolute -top-1 -right-1 text-base">{emojis[i]}</span>
               </div>
-              <Text className="text-white font-semibold text-sm mt-1 drop-shadow">{r.username}</Text>
-              <Text className="text-white/90 font-bold text-base drop-shadow">{r.score}分</Text>
-              <Text className="text-white/70 text-xs drop-shadow">
+              <Text className={`text-sm mt-1 font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{r.username}</Text>
+              <Text className="text-blue-400 font-bold">{r.score}分</Text>
+              <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                 {Math.floor(r.duration / 60)}分{r.duration % 60}秒
               </Text>
             </div>
-          </motion.div>
+
+            {/* Podium bar */}
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: barHeights[i] }}
+              transition={{ duration: 0.6, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
+              className={`w-28 rounded-t-xl bg-gradient-to-t ${colors[i]} flex items-start justify-center pt-2`}
+              style={{ height: barHeights[i] }}
+            >
+              <span className="text-white font-bold text-sm opacity-80">#{i === 0 ? 2 : i === 1 ? 1 : 3}</span>
+            </motion.div>
+          </div>
         ))}
       </div>
     </motion.div>

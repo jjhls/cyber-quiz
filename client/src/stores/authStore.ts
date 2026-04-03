@@ -9,6 +9,7 @@ interface AuthState {
   login: (user: User) => void;
   logout: () => void;
   setLoading: (loading: boolean) => void;
+  updateAvatar: (avatar: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -19,4 +20,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: (user) => set({ user, isAuthenticated: true, isLoading: false }),
   logout: () => set({ user: null, isAuthenticated: false, isLoading: false }),
   setLoading: (loading) => set({ isLoading: loading }),
+  updateAvatar: (avatar) => set((state) => ({
+    user: state.user ? { ...state.user, avatar } : null,
+  })),
 }));

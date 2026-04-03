@@ -137,6 +137,9 @@ export default function ProfilePage() {
     try {
       await userProfileApi.setAvatar(avatarUrl);
       setProfile(prev => prev ? { ...prev, avatar: avatarUrl } : null);
+      // Update auth store so header avatar syncs immediately
+      const { updateAvatar } = useAuthStore.getState();
+      updateAvatar(avatarUrl);
       message.success('头像已更换');
       setAvatarModalOpen(false);
     } catch (err: any) {

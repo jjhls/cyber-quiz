@@ -17,7 +17,6 @@ import {
   MoonOutlined,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
 
 const { Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -36,15 +35,7 @@ export default function MainLayout() {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const isDark = theme === 'dark';
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
-
-  useEffect(() => {
-    import('../api/userProfile').then(({ userProfileApi }) => {
-      userProfileApi.getProfile().then(profile => {
-        setUserAvatar(profile.avatar);
-      }).catch(() => {});
-    });
-  }, []);
+  const userAvatar = user?.avatar || null;
 
   const handleLogout = async () => {
     try {

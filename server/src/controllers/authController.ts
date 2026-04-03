@@ -24,13 +24,14 @@ export async function register(req: Request, res: Response) {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: { username, password: hashedPassword },
-      select: { id: true, username: true, role: true, createdAt: true },
+      select: { id: true, username: true, role: true, avatar: true, createdAt: true },
     });
 
     // Set session
     (req.session as any).userId = user.id;
     (req.session as any).username = user.username;
     (req.session as any).role = user.role;
+    (req.session as any).avatar = user.avatar;
 
     res.status(201).json(user);
   } catch (error: any) {
@@ -89,6 +90,7 @@ export async function login(req: Request, res: Response) {
     (req.session as any).userId = user.id;
     (req.session as any).username = user.username;
     (req.session as any).role = user.role;
+    (req.session as any).avatar = user.avatar;
 
     res.json({ id: user.id, username: user.username, role: user.role, avatar: user.avatar, consecutiveDays });
   } catch (error: any) {

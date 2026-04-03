@@ -2,6 +2,8 @@ export interface User {
   id: string;
   username: string;
   role: 'user' | 'admin';
+  avatar?: string | null;
+  consecutiveDays?: number;
 }
 
 export interface Question {

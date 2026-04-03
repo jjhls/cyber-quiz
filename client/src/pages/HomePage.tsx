@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Typography, Tag, Button, Avatar, Spin, Progress, Badge } from 'antd';
-import { TrophyOutlined, BarChartOutlined, ClockCircleOutlined, ScheduleOutlined, ThunderboltOutlined, FlagOutlined, BarChartOutlined as BarChartFilled, BookOutlined, RiseOutlined, ArrowUpOutlined, ArrowDownOutlined, FireOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { Card, Typography, Tag, Button, Avatar, Spin, Progress, Badge } from 'antd';
+import { TrophyOutlined, BarChartOutlined, ClockCircleOutlined, ScheduleOutlined, ThunderboltOutlined, FlagOutlined, BarChartOutlined as BarChartFilled, BookOutlined, RiseOutlined, ArrowUpOutlined, FireOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { useThemeStore } from '../stores/themeStore';
 import { useNavigate } from 'react-router-dom';
@@ -56,15 +56,65 @@ const securityTips = [
   { title: '输入验证', content: '永远不要信任用户输入。在服务端和客户端都应该进行输入验证，使用白名单而非黑名单策略。' },
 ];
 
-function BentoCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+// Animated counter component
+function AnimatedCounter({ value, duration = 1.5 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(0);
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: '-50px' });
+
+  useEffect(() => {
+    if (!isInView) return;
+    let start = 0;
+    const end = value;
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = (currentTime - startTime) / 1000;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      start = Math.round(eased * end);
+      setDisplay(start);
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
+  }, [value, duration, isInView]);
+
+  return <span ref={ref}>{display}</span>;
+}
+
+// Stagger animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.4, ease: 'easeOut' },
+  },
+};
+
+// BentoCard with hover lift effect
+function BentoCard({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={`${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-blue-500/5' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-blue-500/10'} border rounded-2xl p-5 hover:shadow-lg transition-all duration-200 card-highlight relative overflow-hidden ${className}`}
+      variants={itemVariants}
+      whileHover={{ y: -8, transition: { duration: 0.2 } }}
+      className={`${isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:shadow-blue-500/10' : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-blue-500/15'} border rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 card-highlight relative overflow-hidden ${className}`}
     >
       {children}
     </motion.div>
@@ -203,11 +253,18 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Aurora Background Effect */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className={`absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-20 animate-pulse ${isDark ? 'bg-blue-500' : 'bg-blue-300'}`} style={{ animationDuration: '4s' }} />
+        <div className={`absolute top-1/3 -left-20 w-72 h-72 rounded-full blur-3xl opacity-15 ${isDark ? 'bg-violet-500' : 'bg-violet-300'}`} style={{ animation: 'pulse 6s ease-in-out infinite' }} />
+        <div className={`absolute bottom-20 right-1/4 w-64 h-64 rounded-full blur-3xl opacity-10 ${isDark ? 'bg-emerald-500' : 'bg-emerald-300'}`} style={{ animation: 'pulse 8s ease-in-out infinite' }} />
+      </div>
+
       {/* Welcome Area - Upgraded */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border rounded-2xl p-6 card-highlight relative overflow-hidden`}
+        className={`relative z-10 ${isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} border rounded-2xl p-6 card-highlight relative overflow-hidden`}
       >
         {/* Background decoration */}
         <div className={`absolute top-0 right-0 w-64 h-64 opacity-5 pointer-events-none ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
@@ -302,9 +359,15 @@ export default function HomePage() {
         </div>
       </motion.div>
 
-      {/* Bento Grid Stats */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={12}>
+      {/* Bento Grid Stats - CSS Grid for better alignment */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        {/* Ongoing Contests - spans 2 columns on lg */}
+        <div className="sm:col-span-2 lg:col-span-2">
           <BentoCard>
             <TrophyOutlined className={`absolute -right-4 -bottom-4 text-8xl rotate-12 ${isDark ? 'text-blue-500/5' : 'text-blue-500/10'}`} />
             <div className="relative z-10">
@@ -319,16 +382,16 @@ export default function HomePage() {
                   </Tag>
                 )}
               </div>
-              <Statistic
-                value={d.ongoingContests}
-                valueStyle={{ color: '#60a5fa', fontSize: '2.5rem', fontWeight: 700 }}
-              />
+              <div className={`text-4xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                <AnimatedCounter value={d.ongoingContests} />
+              </div>
               <Text className={`mt-2 block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>点击竞赛列表立即参加</Text>
             </div>
           </BentoCard>
-        </Col>
+        </div>
 
-        <Col xs={12} sm={12} lg={6}>
+        {/* Average Score */}
+        <div>
           <BentoCard>
             <BarChartOutlined className={`absolute -right-3 -bottom-3 text-7xl rotate-12 ${isDark ? 'text-emerald-500/5' : 'text-emerald-500/10'}`} />
             <div className="relative z-10">
@@ -336,19 +399,18 @@ export default function HomePage() {
                 <BarChartOutlined className="text-xl text-emerald-400" />
                 <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>平均得分</Text>
               </div>
-              <Statistic
-                value={trend.avgScore}
-                precision={0}
-                valueStyle={{ color: '#34d399', fontSize: '2rem', fontWeight: 700 }}
-              />
+              <div className={`text-3xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                <AnimatedCounter value={Math.round(trend.avgScore)} />
+              </div>
               <Text className={`text-xs mt-1 block flex items-center gap-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                <RiseOutlined className="text-emerald-400" /> 共 {trend.totalSubmissions} 次提交
+                <RiseOutlined className="text-emerald-400" /> 共 <AnimatedCounter value={trend.totalSubmissions} /> 次提交
               </Text>
             </div>
           </BentoCard>
-        </Col>
+        </div>
 
-        <Col xs={12} sm={12} lg={6}>
+        {/* Current Rank */}
+        <div>
           <BentoCard>
             <SafetyCertificateOutlined className={`absolute -right-3 -bottom-3 text-7xl rotate-12 ${isDark ? 'text-amber-500/5' : 'text-amber-500/10'}`} />
             <div className="relative z-10">
@@ -356,34 +418,40 @@ export default function HomePage() {
                 <SafetyCertificateOutlined className="text-xl text-amber-400" />
                 <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>当前排名</Text>
               </div>
-              <Statistic
-                value={trend.userRank}
-                valueStyle={{ color: '#fbbf24', fontSize: '2rem', fontWeight: 700 }}
-                prefix="#"
-              />
+              <div className={`text-3xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                #<AnimatedCounter value={trend.userRank} />
+              </div>
               <Text className={`text-xs mt-1 block ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>/ {trend.totalUsers} 人</Text>
             </div>
           </BentoCard>
-        </Col>
-      </Row>
+        </div>
+      </motion.div>
 
-      {/* Bento Grid Charts & Info */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={16}>
-          <BentoCard>
+      {/* Bento Grid Charts & Info - Equal height row */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: '-50px' }}
+        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
+      >
+        {/* Radar Chart - spans 2 columns */}
+        <div className="lg:col-span-2">
+          <BentoCard className="min-h-[280px]">
             <Title level={5} className={`!mb-2 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📈 能力分布</Title>
             <Text className={`text-xs block mb-2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>基于答题正确率评估各安全领域掌握程度</Text>
-            <div className="h-72">
+            <div className="h-56">
               <ReactECharts
                 option={radarOption}
                 style={{ height: '100%', width: '100%' }}
               />
             </div>
           </BentoCard>
-        </Col>
+        </div>
 
-        <Col xs={24} lg={8}>
-          <BentoCard>
+        {/* Next Contest */}
+        <div>
+          <BentoCard className="min-h-[280px]">
             <Title level={5} className={`!mb-4 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>⏰ 下一场比赛</Title>
             {d.nextContest ? (
               <div className="space-y-3">
@@ -401,164 +469,174 @@ export default function HomePage() {
                 </Button>
               </div>
             ) : (
-              <div className="text-center py-4">
-                <ScheduleOutlined className={`text-3xl mb-2 block ${isDark ? 'text-slate-600' : 'text-slate-300'}`} />
+              <div className="flex flex-col items-center justify-center h-40">
+                <ScheduleOutlined className={`text-4xl mb-3 ${isDark ? 'text-slate-600' : 'text-slate-300'}`} />
                 <Text className={isDark ? 'text-slate-500' : 'text-slate-400'}>暂无即将开始的比赛</Text>
               </div>
             )}
           </BentoCard>
-        </Col>
-      </Row>
+        </div>
+      </motion.div>
 
-      {/* Daily Tips + Learning Goals */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={12}>
-          <BentoCard>
-            <div className="flex items-center justify-between mb-3">
-              <Title level={5} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>💡 每日安全小贴士</Title>
+      {/* Daily Tips + Learning Goals - Equal height row */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: '-50px' }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
+        {/* Security Tips */}
+        <BentoCard className="min-h-[200px]">
+          <div className="flex items-center justify-between mb-3">
+            <Title level={5} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>💡 每日安全小贴士</Title>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => setCurrentTip((currentTip + 1) % securityTips.length)}
+              className={isDark ? 'text-blue-400' : 'text-blue-600'}
+            >
+              换一条
+            </Button>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentTip}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Tag color="blue" className="mb-2">{securityTips[currentTip].title}</Tag>
+              <Text className={isDark ? 'text-slate-300' : 'text-slate-600'}>{securityTips[currentTip].content}</Text>
+            </motion.div>
+          </AnimatePresence>
+        </BentoCard>
+
+        {/* Learning Goals */}
+        <BentoCard className="min-h-[200px]">
+          <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>🎯 今日学习目标</Title>
+          <div className="space-y-3">
+            {profile?.dailyGoals ? (
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                      {profile.dailyGoals.practice.current >= profile.dailyGoals.practice.target ? '✅' : '⬜'} 完成 {profile.dailyGoals.practice.target} 道练习题
+                    </Text>
+                    <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {profile.dailyGoals.practice.current}/{profile.dailyGoals.practice.target}
+                    </Text>
+                  </div>
+                  <Progress
+                    percent={(profile.dailyGoals.practice.current / profile.dailyGoals.practice.target) * 100}
+                    size="small"
+                    strokeColor="#3b82f6"
+                    trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                    showInfo={false}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                      {profile.dailyGoals.contest.current >= profile.dailyGoals.contest.target ? '✅' : '⬜'} 参加 {profile.dailyGoals.contest.target} 场竞赛
+                    </Text>
+                    <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {profile.dailyGoals.contest.current}/{profile.dailyGoals.contest.target}
+                    </Text>
+                  </div>
+                  <Progress
+                    percent={(profile.dailyGoals.contest.current / profile.dailyGoals.contest.target) * 100}
+                    size="small"
+                    strokeColor="#3b82f6"
+                    trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                    showInfo={false}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
+                      {profile.dailyGoals.review.current >= profile.dailyGoals.review.target ? '✅' : '⬜'} 复习 {profile.dailyGoals.review.target} 道错题
+                    </Text>
+                    <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {profile.dailyGoals.review.current}/{profile.dailyGoals.review.target}
+                    </Text>
+                  </div>
+                  <Progress
+                    percent={(profile.dailyGoals.review.current / profile.dailyGoals.review.target) * 100}
+                    size="small"
+                    strokeColor="#3b82f6"
+                    trailColor={isDark ? '#1e293b' : '#e2e8f0'}
+                    showInfo={false}
+                  />
+                </div>
+              </>
+            ) : (
+              <Text className={isDark ? 'text-slate-500' : 'text-slate-400'}>暂无目标数据</Text>
+            )}
+          </div>
+        </BentoCard>
+      </motion.div>
+
+      {/* Recent Submissions & Announcement - Equal height row */}
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: '-50px' }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      >
+        {/* Recent Submissions */}
+        <BentoCard className="min-h-[200px]">
+          <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📋 最近提交</Title>
+          {d.recentSubmissions.length > 0 ? (
+            <div className="space-y-2">
+              {d.recentSubmissions.slice(0, 5).map((s) => (
+                <div key={s.id} className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                  <div>
+                    <Text className={`block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{s.contestTitle}</Text>
+                    <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                      {new Date(s.submittedAt).toLocaleString('zh-CN')}
+                    </Text>
+                  </div>
+                  <Text className="text-blue-400 font-bold">{s.score}/{s.totalScore}</Text>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-36">
+              <svg className={`w-12 h-12 mx-auto mb-2 ${isDark ? 'text-slate-700' : 'text-slate-300'}`} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="8" y="12" width="48" height="40" rx="4" />
+                <line x1="16" y1="24" x2="48" y2="24" />
+                <line x1="16" y1="32" x2="40" y2="32" />
+                <line x1="16" y1="40" x2="32" y2="40" />
+                <circle cx="48" cy="44" r="12" fill={isDark ? '#0f172a' : '#f8fafc'} stroke="currentColor" />
+                <line x1="48" y1="40" x2="48" y2="48" />
+                <line x1="44" y1="44" x2="52" y2="44" />
+              </svg>
+              <Text className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>暂无提交记录</Text>
               <Button
                 type="link"
-                size="small"
-                onClick={() => setCurrentTip((currentTip + 1) % securityTips.length)}
-                className={isDark ? 'text-blue-400' : 'text-blue-600'}
+                onClick={() => navigate('/contests')}
+                className="text-blue-400 mt-1"
               >
-                换一条
+                去参加竞赛 →
               </Button>
             </div>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentTip}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Tag color="blue" className="mb-2">{securityTips[currentTip].title}</Tag>
-                <Text className={isDark ? 'text-slate-300' : 'text-slate-600'}>{securityTips[currentTip].content}</Text>
-              </motion.div>
-            </AnimatePresence>
-          </BentoCard>
-        </Col>
+          )}
+        </BentoCard>
 
-        <Col xs={24} md={12}>
-          <BentoCard>
-            <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>🎯 今日学习目标</Title>
-            <div className="space-y-4">
-              {profile?.dailyGoals && (
-                <>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                        {profile.dailyGoals.practice.current >= profile.dailyGoals.practice.target ? '✅' : '⬜'} 完成 {profile.dailyGoals.practice.target} 道练习题
-                      </Text>
-                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {profile.dailyGoals.practice.current}/{profile.dailyGoals.practice.target}
-                      </Text>
-                    </div>
-                    <Progress
-                      percent={(profile.dailyGoals.practice.current / profile.dailyGoals.practice.target) * 100}
-                      size="small"
-                      strokeColor="#3b82f6"
-                      trailColor={isDark ? '#1e293b' : '#e2e8f0'}
-                      showInfo={false}
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                        {profile.dailyGoals.contest.current >= profile.dailyGoals.contest.target ? '✅' : '⬜'} 参加 {profile.dailyGoals.contest.target} 场竞赛
-                      </Text>
-                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {profile.dailyGoals.contest.current}/{profile.dailyGoals.contest.target}
-                      </Text>
-                    </div>
-                    <Progress
-                      percent={(profile.dailyGoals.contest.current / profile.dailyGoals.contest.target) * 100}
-                      size="small"
-                      strokeColor="#3b82f6"
-                      trailColor={isDark ? '#1e293b' : '#e2e8f0'}
-                      showInfo={false}
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>
-                        {profile.dailyGoals.review.current >= profile.dailyGoals.review.target ? '✅' : '⬜'} 复习 {profile.dailyGoals.review.target} 道错题
-                      </Text>
-                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {profile.dailyGoals.review.current}/{profile.dailyGoals.review.target}
-                      </Text>
-                    </div>
-                    <Progress
-                      percent={(profile.dailyGoals.review.current / profile.dailyGoals.review.target) * 100}
-                      size="small"
-                      strokeColor="#3b82f6"
-                      trailColor={isDark ? '#1e293b' : '#e2e8f0'}
-                      showInfo={false}
-                    />
-                  </div>
-                </>
-              )}
+        {/* Announcements */}
+        <BentoCard className="min-h-[200px]">
+          <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📢 最新公告</Title>
+          <div className="space-y-2">
+            <div className={`flex items-start gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+              <Tag color="blue">2026-04-01</Tag>
+              <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>网络安全竞赛平台正式上线，欢迎注册体验！</Text>
             </div>
-          </BentoCard>
-        </Col>
-      </Row>
-
-      {/* Recent Submissions & Announcement */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={12}>
-          <BentoCard>
-            <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📋 最近提交</Title>
-            {d.recentSubmissions.length > 0 ? (
-              <div className="space-y-3">
-                {d.recentSubmissions.slice(0, 5).map((s) => (
-                  <div key={s.id} className={`flex items-center justify-between p-3 rounded-xl ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                    <div>
-                      <Text className={`block ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{s.contestTitle}</Text>
-                      <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {new Date(s.submittedAt).toLocaleString('zh-CN')}
-                      </Text>
-                    </div>
-                    <Text className="text-blue-400 font-bold">{s.score}/{s.totalScore}</Text>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <svg className={`w-16 h-16 mx-auto mb-3 ${isDark ? 'text-slate-700' : 'text-slate-300'}`} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect x="8" y="12" width="48" height="40" rx="4" />
-                  <line x1="16" y1="24" x2="48" y2="24" />
-                  <line x1="16" y1="32" x2="40" y2="32" />
-                  <line x1="16" y1="40" x2="32" y2="40" />
-                  <circle cx="48" cy="44" r="12" fill={isDark ? '#0f172a' : '#f8fafc'} stroke="currentColor" />
-                  <line x1="48" y1="40" x2="48" y2="48" />
-                  <line x1="44" y1="44" x2="52" y2="44" />
-                </svg>
-                <Text className={`block mb-3 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>暂无提交记录</Text>
-                <Button
-                  type="primary"
-                  onClick={() => navigate('/contests')}
-                  className="bg-blue-500 hover:bg-blue-400 border-0 rounded-xl"
-                >
-                  去参加竞赛 →
-                </Button>
-              </div>
-            )}
-          </BentoCard>
-        </Col>
-
-        <Col xs={24} md={12}>
-          <BentoCard>
-            <Title level={5} className={`!mb-3 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📢 最新公告</Title>
-            <div className="space-y-3">
-              <div className={`flex items-start gap-3 p-3 rounded-xl ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
-                <Tag color="blue">2026-04-01</Tag>
-                <Text className={isDark ? 'text-slate-300' : 'text-slate-700'}>网络安全竞赛平台正式上线，欢迎注册体验！</Text>
-              </div>
-            </div>
-          </BentoCard>
-        </Col>
-      </Row>
+          </div>
+        </BentoCard>
+      </motion.div>
     </div>
   );
 }

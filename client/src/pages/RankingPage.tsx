@@ -78,12 +78,12 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
   const top3 = rankings.slice(0, 3);
   if (top3.length < 3) return null;
 
-  // Fixed 3:2:1 height ratio (1st=180px, 2nd=120px, 3rd=60px)
+  // Fixed 3:2:1 height ratio (1st=240px, 2nd=160px, 3rd=80px)
   const order = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
-  const barHeights = [120, 180, 60]; // 2nd:120, 1st:180, 3rd:60
+  const barHeights = [160, 240, 80]; // 2nd:160, 1st:240, 3rd:80
   const colors = ['from-slate-400 to-slate-500', 'from-yellow-400 to-amber-500', 'from-amber-600 to-amber-700'];
   const emojis = ['🥈', '🥇', '🥉'];
-  const sizes = [56, 64, 56];
+  const sizes = [48, 56, 48];
 
   return (
     <motion.div
@@ -91,53 +91,44 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="flex justify-center items-end gap-6 mb-2">
-        {order.map((r, i) => (
-          <motion.div
-            key={r.userId}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', delay: i * 0.15, stiffness: 200 }}
-            className="flex flex-col items-center"
-          >
-            <div className="relative">
-              {userAvatars[r.userId] ? (
-                <Avatar
-                  src={userAvatars[r.userId]}
-                  size={sizes[i]}
-                  className="border-2 border-white/30"
-                />
-              ) : (
-                <Avatar
-                  size={sizes[i]}
-                  className="bg-gradient-to-br from-blue-500 to-violet-500 text-white font-bold"
-                  style={{ fontSize: sizes[i] * 0.4 }}
-                >
-                  {r.username.charAt(0)}
-                </Avatar>
-              )}
-              <span className="absolute -top-2 -right-2 text-lg">{emojis[i]}</span>
-            </div>
-            <Text className={`text-sm mt-2 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{r.username}</Text>
-            <Text className="text-blue-400 font-bold text-lg">{r.score}分</Text>
-            <Text className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
-              {Math.floor(r.duration / 60)}分{r.duration % 60}秒
-            </Text>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="flex justify-center gap-3 items-end mt-4">
+      <div className="flex justify-center items-end gap-3">
         {order.map((r, i) => (
           <motion.div
             key={r.userId}
             initial={{ height: 0 }}
             animate={{ height: barHeights[i] }}
             transition={{ duration: 0.6, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
-            className={`w-32 rounded-t-xl bg-gradient-to-t ${colors[i]} flex items-start justify-center pt-3`}
+            className={`relative w-36 rounded-t-xl bg-gradient-to-t ${colors[i]} flex flex-col items-center justify-end pb-4 pt-2 overflow-hidden`}
             style={{ height: barHeights[i] }}
           >
-            <span className="text-white font-bold text-lg opacity-80">#{i === 0 ? 2 : i === 1 ? 1 : 3}</span>
+            {/* Medal emoji at top */}
+            <span className="absolute top-2 text-xl">{emojis[i]}</span>
+
+            {/* User info inside the bar */}
+            <div className="flex flex-col items-center mt-2">
+              <div className="relative">
+                {userAvatars[r.userId] ? (
+                  <Avatar
+                    src={userAvatars[r.userId]}
+                    size={sizes[i]}
+                    className="border-2 border-white/50"
+                  />
+                ) : (
+                  <Avatar
+                    size={sizes[i]}
+                    className="bg-white/20 text-white font-bold backdrop-blur-sm"
+                    style={{ fontSize: sizes[i] * 0.4 }}
+                  >
+                    {r.username.charAt(0)}
+                  </Avatar>
+                )}
+              </div>
+              <Text className="text-white font-semibold text-sm mt-1 drop-shadow">{r.username}</Text>
+              <Text className="text-white/90 font-bold text-base drop-shadow">{r.score}分</Text>
+              <Text className="text-white/70 text-xs drop-shadow">
+                {Math.floor(r.duration / 60)}分{r.duration % 60}秒
+              </Text>
+            </div>
           </motion.div>
         ))}
       </div>

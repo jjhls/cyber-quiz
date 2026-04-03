@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Typography, Card, Tag, Button, Input, Select, Space, Spin, message, Radio, Checkbox } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { practiceApi, wrongBookApi } from '../api/question';
+import { useThemeStore } from '../stores/themeStore';
 
 const { Title, Text } = Typography;
 
@@ -23,6 +24,8 @@ const difficultyMap: Record<string, { color: string; label: string }> = {
 };
 
 export default function PracticePage() {
+  const { theme } = useThemeStore();
+  const isDark = theme === 'dark';
   const [questions, setQuestions] = useState<PracticeQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentQ, setCurrentQ] = useState<PracticeQuestion | null>(null);
@@ -67,34 +70,38 @@ export default function PracticePage() {
     }
   };
 
+  const inputClass = isDark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-900';
+  const cardClass = isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200';
+  const optionBase = isDark ? 'border-slate-700 bg-slate-800/50 hover:border-slate-600' : 'border-slate-200 bg-slate-50 hover:border-slate-300';
+  const optionSelected = 'border-blue-500 bg-blue-500/10';
+  const selectClass = isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200';
+
   // Practice view
   if (currentQ) {
     const diff = difficultyMap[currentQ.difficulty];
     return (
       <div className="space-y-6">
-        <Button onClick={() => { setCurrentQ(null); setShowResult(false); }} className="bg-slate-800 border-slate-700 text-slate-300 rounded-xl mb-4">
+        <Button onClick={() => { setCurrentQ(null); setShowResult(false); }} className={`rounded-xl mb-4 ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'}`}>
           ← 返回题库
         </Button>
 
-        <Card className="bg-slate-900 border-slate-800 rounded-2xl">
+        <Card className={`rounded-2xl ${cardClass}`}>
           <div className="flex items-center gap-2 mb-4">
             <Tag color={diff?.color}>{diff?.label}</Tag>
             <Tag color="default">{currentQ.score}分</Tag>
             <Tag color="cyan">{currentQ.category}</Tag>
           </div>
 
-          <Title level={4} className="!text-slate-100 !mb-6 whitespace-pre-wrap">{currentQ.title}</Title>
+          <Title level={4} className={`!mb-6 whitespace-pre-wrap ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>{currentQ.title}</Title>
 
           {currentQ.type === 'single' && (
             <Radio.Group value={userAnswer} onChange={e => setUserAnswer(e.target.value)} className="w-full">
               <div className="space-y-3">
                 {currentQ.options.map((opt, idx) => (
                   <div key={idx} className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    userAnswer === opt
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                    userAnswer === opt ? optionSelected : optionBase
                   }`}>
-                    <Radio value={opt} className="text-slate-300">{opt}</Radio>
+                    <Radio value={opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>{opt}</Radio>
                   </div>
                 ))}
               </div>
@@ -106,11 +113,9 @@ export default function PracticePage() {
               <div className="space-y-3">
                 {['正确', '错误'].map(opt => (
                   <div key={opt} className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    userAnswer === opt
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                    userAnswer === opt ? optionSelected : optionBase
                   }`}>
-                    <Radio value={opt} className="text-slate-300">{opt === '正确' ? '✅ 正确' : '❌ 错误'}</Radio>
+                    <Radio value={opt} className={isDark ? 'text-slate-300' : 'text-slate-700'}>{opt === '正确' ? '✅ 正确' : '❌ 错误'}</Radio>
                   </div>
                 ))}
               </div>
@@ -122,7 +127,7 @@ export default function PracticePage() {
               placeholder="请输入答案..."
               value={userAnswer || ''}
               onChange={e => setUserAnswer(e.target.value)}
-              className="bg-slate-800 border-slate-600 text-slate-100 rounded-xl h-12"
+              className={`rounded-xl h-12 ${inputClass}`}
               size="large"
             />
           )}
@@ -139,14 +144,14 @@ export default function PracticePage() {
                     {result?.correct ? '✅ 回答正确！' : '❌ 回答错误'}
                   </div>
                   {!result?.correct && (
-                    <div className="text-slate-300">
+                    <div className={isDark ? 'text-slate-300' : 'text-slate-700'}>
                       正确答案: {Array.isArray(result?.correctAnswer) ? result.correctAnswer.join(', ') : result?.correctAnswer}
                     </div>
                   )}
                 </div>
                 {result?.explanation && (
-                  <div className="p-4 bg-slate-800/50 rounded-xl mb-4">
-                    <Text className="text-slate-400">💡 解析: {result.explanation}</Text>
+                  <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-slate-800/50' : 'bg-slate-50'}`}>
+                    <Text className={isDark ? 'text-slate-400' : 'text-slate-500'}>💡 解析: {result.explanation}</Text>
                   </div>
                 )}
                 <Button onClick={() => { setCurrentQ(null); setShowResult(false); }} className="bg-blue-500 hover:bg-blue-400 border-0 text-white rounded-xl">
@@ -163,12 +168,12 @@ export default function PracticePage() {
   // Question list view
   return (
     <div className="space-y-6">
-      <Title level={3} className="!text-slate-100">📚 题库练习</Title>
+      <Title level={3} className={`!mb-0 ${isDark ? '!text-slate-100' : '!text-slate-900'}`}>📚 题库练习</Title>
 
       <div className="flex flex-wrap gap-3">
         <Select
           defaultValue="all"
-          className="w-32 bg-slate-800 border-slate-700"
+          className={`w-32 ${selectClass}`}
           onChange={(v) => loadQuestions(v === 'all' ? undefined : { category: v })}
           options={[
             { value: 'all', label: '全部分类' },
@@ -180,7 +185,7 @@ export default function PracticePage() {
         />
         <Select
           defaultValue="all"
-          className="w-32 bg-slate-800 border-slate-700"
+          className={`w-32 ${selectClass}`}
           onChange={(v) => loadQuestions(v === 'all' ? undefined : { difficulty: v })}
           options={[
             { value: 'all', label: '全部难度' },
@@ -192,11 +197,11 @@ export default function PracticePage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20"><Spin size="large" /></div>
+        <div className={`flex justify-center py-20 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}><Spin size="large" /></div>
       ) : questions.length === 0 ? (
-        <Card className="bg-slate-900 border-slate-800 rounded-2xl">
+        <Card className={`rounded-2xl ${cardClass}`}>
           <div className="text-center py-10">
-            <span className="text-slate-500 text-lg">暂无题目</span>
+            <span className={`text-lg ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>暂无题目</span>
           </div>
         </Card>
       ) : (
@@ -204,14 +209,14 @@ export default function PracticePage() {
           {questions.map(q => {
             const diff = difficultyMap[q.difficulty];
             return (
-              <Card key={q.id} className="bg-slate-900 border-slate-800 rounded-2xl hover:border-slate-700 transition-all">
+              <Card key={q.id} className={`rounded-2xl transition-all ${cardClass} ${isDark ? 'hover:border-slate-700' : 'hover:border-blue-300'}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <Tag color={diff?.color}>{diff?.label}</Tag>
-                      <span className="text-slate-100 font-medium">{q.title.substring(0, 80)}{q.title.length > 80 ? '...' : ''}</span>
+                      <span className={`font-medium ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{q.title.substring(0, 80)}{q.title.length > 80 ? '...' : ''}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-500">
+                    <div className={`flex items-center gap-3 text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                       <span>分类: {q.category}</span>
                       <span>{q.score}分</span>
                     </div>

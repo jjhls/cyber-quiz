@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Typography, Tag, Button, Row, Col, Input, Segmented, message } from 'antd';
-import { SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined } from '@ant-design/icons';
-import { motion } from 'framer-motion';
+import { Card, Typography, Tag, Button, Row, Col, Input, Segmented, message, Modal } from 'antd';
+import { SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, TrophyOutlined, CalendarOutlined, FileTextOutlined, HourglassOutlined, CloseOutlined } from '@ant-design/icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import { contestApi, Contest } from '../api/contest';
 
 const { Title, Text } = Typography;
@@ -72,11 +72,186 @@ function ContestSkeleton() {
   );
 }
 
+// Frosted glass contest detail modal
+function ContestDetailModal({ contest, open, onClose }: { contest: Contest | null; open: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
+
+  if (!contest) return null;
+
+  const config = statusConfig[contest.status];
+
+  const handleAction = () => {
+    onClose();
+    if (contest.userSubmission) {
+      navigate(`/contests/${contest.id}/result`);
+    } else if (contest.status === 'ongoing') {
+      navigate(`/contests/${contest.id}`);
+    } else {
+      navigate(`/contests/${contest.id}`);
+    }
+  };
+
+  const getActionLabel = () => {
+    if (contest.userSubmission) return '查看成绩';
+    if (contest.status === 'ongoing') return '立即参赛';
+    if (contest.status === 'upcoming') return '预约报名';
+    return '查看排名';
+  };
+
+  const getActionColor = () => {
+    if (contest.userSubmission) return 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30';
+    if (contest.status === 'ongoing') return 'bg-emerald-500 hover:bg-emerald-400 text-white border-0';
+    if (contest.status === 'upcoming') return 'bg-blue-500 hover:bg-blue-400 text-white border-0';
+    return 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0';
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+            onClick={onClose}
+          />
+
+          {/* Modal Content */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+          >
+            <div
+              className="w-full max-w-lg pointer-events-auto rounded-3xl overflow-hidden border border-slate-700/50 shadow-2xl shadow-blue-500/10"
+              style={{
+                background: 'rgba(15, 23, 42, 0.85)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+              }}
+            >
+              {/* Top gradient bar */}
+              <div className={`h-1 bg-gradient-to-r ${config.gradient}`} />
+
+              {/* Header */}
+              <div className="p-6 pb-4">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1 pr-4">
+                    <Title level={4} className="!text-slate-100 !mb-2 leading-snug">{contest.title}</Title>
+                    <StatusTag status={contest.status} />
+                  </div>
+                  <button
+                    onClick={onClose}
+                    className="p-2 rounded-xl hover:bg-slate-700/50 transition-colors text-slate-400 hover:text-slate-200"
+                  >
+                    <CloseOutlined />
+                  </button>
+                </div>
+
+                {/* Description */}
+                {contest.description && (
+                  <div className="p-3 bg-slate-800/50 rounded-xl mb-4">
+                    <Text className="text-slate-300 text-sm leading-relaxed">{contest.description}</Text>
+                  </div>
+                )}
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                    <CalendarOutlined className="text-blue-400" />
+                    <div>
+                      <Text className="text-slate-500 text-xs block">开始时间</Text>
+                      <Text className="text-slate-300 text-sm">{new Date(contest.startTime).toLocaleString('zh-CN')}</Text>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                    <CalendarOutlined className="text-blue-400" />
+                    <div>
+                      <Text className="text-slate-500 text-xs block">结束时间</Text>
+                      <Text className="text-slate-300 text-sm">{new Date(contest.endTime).toLocaleString('zh-CN')}</Text>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                    <FileTextOutlined className="text-emerald-400" />
+                    <div>
+                      <Text className="text-slate-500 text-xs block">题目数量</Text>
+                      <Text className="text-slate-300 text-sm">{contest.questionIds?.length || 0} 题</Text>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-xl">
+                    <HourglassOutlined className="text-amber-400" />
+                    <div>
+                      <Text className="text-slate-500 text-xs block">答题时长</Text>
+                      <Text className="text-slate-300 text-sm">{contest.duration} 分钟</Text>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score info */}
+                <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-xl mb-4">
+                  <div className="flex items-center gap-2">
+                    <TrophyOutlined className="text-amber-400" />
+                    <Text className="text-slate-300 text-sm">总分</Text>
+                  </div>
+                  <Text className="text-amber-400 font-bold text-lg">{contest.totalScore} 分</Text>
+                </div>
+
+                {/* User submission info */}
+                {contest.userSubmission && (
+                  <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CheckCircleOutlined className="text-emerald-400" />
+                        <Text className="text-emerald-300 font-medium">已参加</Text>
+                      </div>
+                      <div className="text-right">
+                        <Text className="text-emerald-400 font-bold text-lg">
+                          {contest.userSubmission.score}/{contest.userSubmission.totalScore}
+                        </Text>
+                        <Text className="text-emerald-400/70 text-xs block">
+                          正确 {contest.userSubmission.correctCount}/{contest.userSubmission.totalCount}
+                        </Text>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 pb-6 pt-2 flex gap-3">
+                <Button
+                  onClick={onClose}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-xl h-11"
+                >
+                  关闭
+                </Button>
+                <Button
+                  onClick={handleAction}
+                  className={`flex-1 ${getActionColor()} rounded-xl h-11 font-medium`}
+                >
+                  {getActionLabel()} →
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function ContestListPage() {
   const navigate = useNavigate();
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('全部');
+  const [detailContest, setDetailContest] = useState<Contest | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     loadContests();
@@ -99,7 +274,8 @@ export default function ContestListPage() {
     if (contest.userSubmission) {
       navigate(`/contests/${contest.id}/result`);
     } else {
-      navigate(`/contests/${contest.id}`);
+      setDetailContest(contest);
+      setDetailOpen(true);
     }
   };
 
@@ -118,7 +294,7 @@ export default function ContestListPage() {
       case 'upcoming':
         return { label: '查看详情 →', color: 'bg-blue-500 hover:bg-blue-400 text-white border-0', icon: null };
       case 'finished':
-        return { label: '查看排名 →', color: 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0', icon: null };
+        return { label: '查看成绩 →', color: 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0', icon: null };
       default:
         return { label: '查看详情 →', color: 'bg-slate-700 hover:bg-slate-600 text-slate-300 border-0', icon: null };
     }
@@ -246,6 +422,13 @@ export default function ContestListPage() {
           })}
         </Row>
       )}
+
+      {/* Frosted glass detail modal */}
+      <ContestDetailModal
+        contest={detailContest}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      />
     </div>
   );
 }

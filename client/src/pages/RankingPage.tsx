@@ -78,8 +78,17 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
   const top3 = rankings.slice(0, 3);
   if (top3.length < 3) return null;
 
+  // Calculate heights based on score ratio (min h-20, max h-40)
+  const maxScore = top3[0].score || 1;
+  const getHeight = (score: number) => {
+    const ratio = score / maxScore;
+    const minH = 80; // h-20 = 5rem = 80px
+    const maxH = 160; // h-40 = 10rem = 160px
+    return Math.round(minH + (maxH - minH) * ratio);
+  };
+
   const order = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
-  const heights = ['h-28', 'h-36', 'h-20'];
+  const barHeights = order.map(r => getHeight(r.score));
   const colors = ['from-slate-400 to-slate-500', 'from-yellow-400 to-amber-500', 'from-amber-600 to-amber-700'];
   const emojis = ['🥈', '🥇', '🥉'];
   const sizes = [56, 64, 56];
@@ -132,9 +141,10 @@ function Podium({ rankings, isDark, userAvatars }: { rankings: ContestRanking[];
           <motion.div
             key={r.userId}
             initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            transition={{ duration: 0.5, delay: 0.3 + i * 0.1 }}
-            className={`w-28 ${heights[i]} rounded-t-xl bg-gradient-to-t ${colors[i]} flex items-start justify-center pt-3`}
+            animate={{ height: barHeights[i] }}
+            transition={{ duration: 0.6, delay: 0.3 + i * 0.1, ease: 'easeOut' }}
+            className={`w-28 rounded-t-xl bg-gradient-to-t ${colors[i]} flex items-start justify-center pt-3`}
+            style={{ height: barHeights[i] }}
           >
             <span className="text-white font-bold text-lg opacity-80">#{i === 0 ? 2 : i === 1 ? 1 : 3}</span>
           </motion.div>
@@ -315,41 +325,47 @@ export default function RankingPage() {
         )}
       </motion.div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Compact inline layout */}
       {rankings.length > 0 && (
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <BentoCard>
             <TrophyOutlined className={`absolute -right-4 -bottom-4 text-8xl rotate-12 ${isDark ? 'text-amber-500/5' : 'text-amber-500/10'}`} />
-            <div className="relative z-10">
-              <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>参赛人数</Text>
-              <div className={`text-3xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                <AnimatedCounter value={rankings.length} />
+            <div className="relative z-10 flex items-center gap-4">
+              <div>
+                <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>参赛人数</Text>
+                <div className={`text-3xl font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                  <AnimatedCounter value={rankings.length} />
+                </div>
               </div>
-              <Text className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>人</Text>
+              <div className={`text-lg ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>人</div>
             </div>
           </BentoCard>
 
           <BentoCard>
             <RiseOutlined className={`absolute -right-3 -bottom-3 text-7xl rotate-12 ${isDark ? 'text-blue-500/5' : 'text-blue-500/10'}`} />
-            <div className="relative z-10">
-              <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>最高分</Text>
-              <div className={`text-3xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                <AnimatedCounter value={rankings[0]?.score || 0} />
+            <div className="relative z-10 flex items-center gap-4">
+              <div>
+                <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>最高分</Text>
+                <div className={`text-3xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                  <AnimatedCounter value={rankings[0]?.score || 0} />
+                </div>
               </div>
-              <Text className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>/ {rankings[0]?.totalScore || 0}</Text>
+              <div className={`text-lg ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>/ {rankings[0]?.totalScore || 0}</div>
             </div>
           </BentoCard>
 
           <BentoCard>
             <div className={`absolute -right-3 -bottom-3 text-7xl rotate-12 ${isDark ? 'text-emerald-500/5' : 'text-emerald-500/10'}`}>🎯</div>
-            <div className="relative z-10">
-              <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>我的排名</Text>
-              <div className={`text-3xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                {myRank ? `#${myRank}` : '-'}
+            <div className="relative z-10 flex items-center gap-4">
+              <div>
+                <Text className={`text-sm font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>我的排名</Text>
+                <div className={`text-3xl font-bold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                  {myRank ? `#${myRank}` : '-'}
+                </div>
               </div>
-              <Text className={`text-xs mt-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+              <div className={`text-lg ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                 {myRank ? `/ ${rankings.length}` : '未参赛'}
-              </Text>
+              </div>
             </div>
           </BentoCard>
         </motion.div>
@@ -369,7 +385,12 @@ export default function RankingPage() {
               columns={columns}
               dataSource={rankings.filter(r => r.rank > 3)}
               rowKey="rank"
-              pagination={false}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: false,
+                showTotal: (total) => `共 ${total} 条`,
+                className: isDark ? 'text-slate-400' : 'text-slate-600',
+              }}
               className="bg-transparent"
               rowClassName={(record) => {
                 if (myRank && record.rank === myRank) {

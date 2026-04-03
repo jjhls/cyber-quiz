@@ -1,5 +1,14 @@
 import api from './index';
 
+export interface UserSubmission {
+  contestId: string;
+  score: number;
+  totalScore: number;
+  correctCount: number;
+  totalCount: number;
+  submittedAt: string;
+}
+
 export interface Contest {
   id: string;
   title: string;
@@ -14,6 +23,7 @@ export interface Contest {
   questionIds: string[];
   createdAt: string;
   updatedAt: string;
+  userSubmission: UserSubmission | null;
 }
 
 export interface ContestRanking {

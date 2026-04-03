@@ -27,9 +27,14 @@ export default function ExamPage() {
   const [remainingSec, setRemainingSec] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const hasSubmittedRef = useRef(false);
+  const submitRef = useRef<Promise<void> | null>(null);
+  const answersRef = useRef<AnswerMap>({});
+  const remainingRef = useRef(0);
+
+  // Keep refs in sync
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { remainingRef.current = remainingSec; }, [remainingSec]);
 
   // Load exam
   useEffect(() => {
@@ -52,7 +57,7 @@ export default function ExamPage() {
       setRemainingSec(prev => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          handleAutoSubmit();
+          doSubmit('timeup');
           return 0;
         }
         return prev - 1;
@@ -65,52 +70,77 @@ export default function ExamPage() {
 
   // Tab visibility - auto submit on leave
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && !hasSubmittedRef.current && exam && !submitting) {
-        setTabSwitchCount(prev => prev + 1);
-        handleAutoSubmit();
-      }
+    const handleLeave = () => {
+      if (submitRef.current) return; // already submitting
+      setTabSwitchCount(prev => prev + 1);
+      doSubmit('leave');
     };
 
-    const handleBlur = () => {
-      if (!hasSubmittedRef.current && exam && !submitting) {
-        setTabSwitchCount(prev => prev + 1);
-        handleAutoSubmit();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) handleLeave();
+    });
+    window.addEventListener('blur', handleLeave);
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleLeave);
+      window.removeEventListener('blur', handleLeave);
     };
-  }, [exam, submitting]);
+  }, [exam]);
 
-  const handleAutoSubmit = useCallback(async () => {
-    if (!id || !exam || submitting || hasSubmittedRef.current) return;
-    hasSubmittedRef.current = true;
-    setSubmitting(true);
-    if (timerRef.current) clearInterval(timerRef.current);
+  // Unified submit function (prevents double submit)
+  const doSubmit = useCallback((reason: 'manual' | 'timeup' | 'leave') => {
+    if (submitRef.current) return submitRef.current; // prevent double submit
+    if (!id || !exam) return Promise.resolve();
 
-    const duration = exam.duration * 60 - remainingSec;
-    const answeredCount = Object.keys(answers).length;
-    const totalCount = exam.questions.length;
+    const promise = (async () => {
+      setSubmitting(true);
+      if (timerRef.current) clearInterval(timerRef.current);
 
-    try {
-      await examApi.submit(id, { answers, duration });
-      message.warning({
-        content: `⚠️ 已自动交卷！已答 ${answeredCount}/${totalCount} 题`,
-        duration: 5,
-      });
-      navigate(`/contests/${id}/result`);
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '自动提交失败，请刷新页面');
-      setSubmitting(false);
-      hasSubmittedRef.current = false;
-    }
-  }, [id, exam, answers, navigate, submitting, remainingSec]);
+      const duration = exam.duration * 60 - remainingRef.current;
+      const currentAnswers = { ...answersRef.current };
+      const answeredCount = Object.keys(currentAnswers).length;
+      const totalCount = exam.questions.length;
+
+      try {
+        const result = await examApi.submit(id, { answers: currentAnswers, duration });
+
+        if (reason === 'timeup') {
+          message.warning({
+            content: `⏰ 考试时间到！已自动交卷。已答 ${answeredCount}/${totalCount} 题，得分: ${result.score}/${result.totalScore}`,
+            duration: 8,
+          });
+        } else if (reason === 'leave') {
+          message.warning({
+            content: `⚠️ 检测到离开考试页面，已自动交卷。已答 ${answeredCount}/${totalCount} 题，得分: ${result.score}/${result.totalScore}`,
+            duration: 8,
+          });
+        } else {
+          message.success({
+            content: `🎉 提交成功！得分: ${result.score}/${result.totalScore}，正确 ${result.correctCount}/${result.totalCount}`,
+            duration: 5,
+          });
+        }
+
+        submitRef.current = null;
+        navigate(`/contests/${id}/result`);
+      } catch (err: any) {
+        // If server says already submitted, navigate to result
+        if (err.response?.data?.message?.includes('已提交')) {
+          navigate(`/contests/${id}/result`);
+          return;
+        }
+        message.error({
+          content: `提交失败: ${err.response?.data?.message || '网络错误，请刷新页面查看成绩'}`,
+          duration: 8,
+        });
+        setSubmitting(false);
+        submitRef.current = null;
+      }
+    })();
+
+    submitRef.current = promise;
+    return promise;
+  }, [id, exam, navigate]);
 
   const handleSubmit = async () => {
     if (!id || !exam) return;
@@ -132,7 +162,7 @@ export default function ExamPage() {
         okText: '确认提交',
         okButtonProps: { danger: true },
         cancelText: '继续答题',
-        onOk: () => doSubmit(),
+        onOk: () => doSubmit('manual'),
       });
     } else {
       Modal.confirm({
@@ -146,29 +176,8 @@ export default function ExamPage() {
         ),
         okText: '确认提交',
         cancelText: '再检查一遍',
-        onOk: () => doSubmit(),
+        onOk: () => doSubmit('manual'),
       });
-    }
-  };
-
-  const doSubmit = async () => {
-    if (!id || !exam || submitting || hasSubmittedRef.current) return;
-    hasSubmittedRef.current = true;
-    setSubmitting(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    const duration = exam.duration * 60 - remainingSec;
-    try {
-      const result = await examApi.submit(id, { answers, duration });
-      message.success({
-        content: `🎉 提交成功！得分: ${result.score}/${result.totalScore}，正确 ${result.correctCount}/${result.totalCount}`,
-        duration: 5,
-      });
-      navigate(`/contests/${id}/result`);
-    } catch (err: any) {
-      message.error(err.response?.data?.message || '提交失败，请稍后重试');
-      setSubmitting(false);
-      hasSubmittedRef.current = false;
     }
   };
 
@@ -184,8 +193,6 @@ export default function ExamPage() {
   const minutes = Math.floor(remainingSec / 60);
   const seconds = remainingSec % 60;
   const timerColor = remainingSec < 300 ? 'text-red-400 animate-pulse' : remainingSec < 900 ? 'text-amber-400' : 'text-blue-400';
-
-  // Progress percentage
   const progressPercent = exam ? Math.round((Object.keys(answers).length / exam.questions.length) * 100) : 0;
 
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Spin size="large" /></div>;
@@ -251,12 +258,9 @@ export default function ExamPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Progress */}
             <div className="text-sm text-slate-400">
               已答 <span className="text-blue-400 font-bold">{Object.keys(answers).length}</span>/{exam.questions.length} 题
             </div>
-
-            {/* Timer */}
             <div className={`font-mono text-2xl font-bold flex items-center gap-2 ${timerColor}`}>
               <span className="text-lg">⏱</span>
               {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
@@ -264,7 +268,6 @@ export default function ExamPage() {
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-blue-500 transition-all duration-300 rounded-full"
@@ -311,7 +314,6 @@ export default function ExamPage() {
                 })}
               </div>
 
-              {/* Legend */}
               <div className="mt-4 pt-4 border-t border-slate-800">
                 <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
                   <div className="flex items-center gap-2">
@@ -333,7 +335,6 @@ export default function ExamPage() {
                 </div>
               </div>
 
-              {/* Warning notice */}
               <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <div className="flex items-start gap-2">
                   <WarningOutlined className="text-amber-400 mt-0.5 shrink-0" />
@@ -357,7 +358,6 @@ export default function ExamPage() {
             className="flex-1 min-w-0"
           >
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-              {/* Question header */}
               <div className="flex items-center gap-3 mb-5 flex-wrap">
                 <Tag color="blue" className="text-sm px-3 py-1">
                   第 {currentIdx + 1} / {exam.questions.length} 题
@@ -382,10 +382,8 @@ export default function ExamPage() {
                 )}
               </div>
 
-              {/* Question title */}
               <Title level={4} className="!text-slate-100 !mb-8 whitespace-pre-wrap leading-relaxed">{current.title}</Title>
 
-              {/* Single Choice */}
               {current.type === 'single' && (
                 <div className="space-y-3">
                   {current.options.map((opt, idx) => (
@@ -406,7 +404,6 @@ export default function ExamPage() {
                 </div>
               )}
 
-              {/* Multiple Choice */}
               {current.type === 'multiple' && (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 mb-1">
@@ -439,7 +436,6 @@ export default function ExamPage() {
                 </div>
               )}
 
-              {/* True/False */}
               {current.type === 'truefalse' && (
                 <div className="flex gap-4">
                   {['正确', '错误'].map(opt => (
@@ -459,7 +455,6 @@ export default function ExamPage() {
                 </div>
               )}
 
-              {/* Fill Blank */}
               {current.type === 'fillblank' && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
@@ -481,7 +476,6 @@ export default function ExamPage() {
                 </div>
               )}
 
-              {/* Navigation */}
               <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800 flex-wrap gap-3">
                 <Button
                   onClick={() => toggleMark(current.id)}
@@ -512,7 +506,8 @@ export default function ExamPage() {
                   <Button
                     onClick={handleSubmit}
                     loading={submitting}
-                    className="bg-emerald-500 hover:bg-emerald-400 border-0 text-white rounded-xl text-base px-6"
+                    disabled={submitting}
+                    className="bg-emerald-500 hover:bg-emerald-400 border-0 text-white rounded-xl text-base px-6 disabled:opacity-50"
                     icon={<SendOutlined />}
                   >
                     提交试卷

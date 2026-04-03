@@ -8,16 +8,32 @@ export async function getContests(req: Request, res: Response) {
     const where: any = {};
     if (status) where.status = status;
 
+    const session = req.session as any;
+    const userId = session?.userId;
+
     const contests = await prisma.contest.findMany({
       where,
       orderBy: { startTime: 'desc' },
       include: { contestQuestions: { select: { questionId: true } } },
     });
 
+    // If user is logged in, fetch their submissions for these contests
+    let userSubmissions: any[] = [];
+    if (userId) {
+      const contestIds = contests.map(c => c.id);
+      userSubmissions = await prisma.submission.findMany({
+        where: { userId, contestId: { in: contestIds } },
+        select: { contestId: true, score: true, totalScore: true, correctCount: true, totalCount: true, submittedAt: true },
+      });
+    }
+
+    const submissionMap = new Map(userSubmissions.map(s => [s.contestId, s]));
+
     res.json(contests.map(c => ({
       ...c,
       questionIds: c.contestQuestions.map((cq: any) => cq.questionId),
       contestQuestions: undefined,
+      userSubmission: submissionMap.get(c.id) || null,
     })));
   } catch (error: any) {
     console.error('GetContests error:', error);

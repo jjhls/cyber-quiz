@@ -7,14 +7,39 @@ import { contestApi, Contest } from '../api/contest';
 
 const { Title, Text } = Typography;
 
-const statusConfig: Record<string, { color: string; label: string }> = {
-  ongoing: { color: 'emerald', label: '进行中' },
-  upcoming: { color: 'blue', label: '即将开始' },
-  finished: { color: 'default', label: '已结束' },
+const statusConfig: Record<string, { color: string; label: string; gradient: string }> = {
+  ongoing: { color: 'emerald', label: '进行中', gradient: 'from-emerald-500 to-emerald-400' },
+  upcoming: { color: 'blue', label: '即将开始', gradient: 'from-blue-500 to-blue-400' },
+  finished: { color: 'default', label: '已结束', gradient: 'from-slate-600 to-slate-500' },
 };
 
 const statusLabels = ['全部', '进行中', '即将开始', '已结束'];
 const statusMap: Record<string, string> = { '进行中': 'ongoing', '即将开始': 'upcoming', '已结束': 'finished' };
+
+// Capsule status tag with pulse animation for ongoing
+function StatusTag({ status }: { status: string }) {
+  const config = statusConfig[status];
+  if (!config) return null;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+      status === 'ongoing' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+      status === 'upcoming' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+      'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+    }`}>
+      {status === 'ongoing' && (
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+      )}
+      {status === 'upcoming' && (
+        <span className="w-2 h-2 rounded-full bg-blue-400" />
+      )}
+      {status === 'finished' && (
+        <span className="w-2 h-2 rounded-full bg-slate-500" />
+      )}
+      {config.label}
+    </span>
+  );
+}
 
 export default function ContestListPage() {
   const navigate = useNavigate();
@@ -41,10 +66,8 @@ export default function ContestListPage() {
 
   const handleContestClick = (contest: Contest) => {
     if (contest.userSubmission) {
-      // Already participated, go to result
       navigate(`/contests/${contest.id}/result`);
     } else {
-      // Not participated yet, go to detail
       navigate(`/contests/${contest.id}`);
     }
   };
@@ -52,7 +75,7 @@ export default function ContestListPage() {
   const getButtonConfig = (contest: Contest) => {
     if (contest.userSubmission) {
       return {
-        label: `已参加 - ${contest.userSubmission.score}/${contest.userSubmission.totalScore}分`,
+        label: `${contest.userSubmission.score}/${contest.userSubmission.totalScore}分`,
         color: 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30',
         icon: <CheckCircleOutlined />,
       };
@@ -91,9 +114,21 @@ export default function ContestListPage() {
       {loading ? (
         <div className="flex justify-center py-20"><Spin size="large" /></div>
       ) : contests.length === 0 ? (
-        <div className="text-center py-20">
-          <Text className="text-slate-500 text-lg">暂无竞赛</Text>
-        </div>
+        <Card className="bg-slate-900 border-slate-800 rounded-2xl">
+          <div className="text-center py-12">
+            <svg className="w-16 h-16 mx-auto mb-3 text-slate-700" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="12" y="8" width="40" height="48" rx="4" />
+              <line x1="20" y1="20" x2="44" y2="20" />
+              <line x1="20" y1="28" x2="36" y2="28" />
+              <line x1="20" y1="36" x2="40" y2="36" />
+              <circle cx="44" cy="44" r="14" fill="#0f172a" stroke="currentColor" />
+              <line x1="44" y1="38" x2="44" y2="50" />
+              <line x1="38" y1="44" x2="50" y2="44" />
+            </svg>
+            <Text className="text-slate-500 text-lg block mb-2">暂无竞赛</Text>
+            <Text className="text-slate-600">管理员创建竞赛后会在这里显示</Text>
+          </div>
+        </Card>
       ) : (
         <Row gutter={[16, 16]}>
           {contests.map((contest, idx) => {
@@ -102,22 +137,21 @@ export default function ContestListPage() {
             return (
               <Col xs={24} md={12} key={contest.id}>
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
-                  <Card className="bg-slate-900 border-slate-800 rounded-2xl hover:border-slate-700 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200">
+                  <Card className="bg-slate-900 border-slate-800 rounded-2xl hover:border-slate-700 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-200 card-highlight relative overflow-hidden">
+                    {/* Top status bar */}
+                    <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${config.gradient}`} />
+
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${
-                          contest.status === 'ongoing' ? 'bg-emerald-400 animate-pulse' :
-                          contest.status === 'upcoming' ? 'bg-blue-400' : 'bg-slate-500'
-                        }`} />
                         <Title level={5} className="!text-slate-100 !mb-0">{contest.title}</Title>
                       </div>
                       <div className="flex gap-1">
                         {contest.userSubmission && (
-                          <Tag color="emerald" className="flex items-center gap-1">
+                          <Tag color="emerald" className="flex items-center gap-1 text-xs">
                             <CheckCircleOutlined /> 已参加
                           </Tag>
                         )}
-                        <Tag color={config.color}>{config.label}</Tag>
+                        <StatusTag status={contest.status} />
                       </div>
                     </div>
 
@@ -134,7 +168,7 @@ export default function ContestListPage() {
                       </div>
                     </div>
 
-                    {/* Show score if participated */}
+                    {/* Score banner for participated contests */}
                     {contest.userSubmission && (
                       <div className="mb-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-2">

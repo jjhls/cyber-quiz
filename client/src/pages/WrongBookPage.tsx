@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Typography, Card, Tag, Button, Space, Spin, message } from 'antd';
 import { wrongBookApi } from '../api/question';
 
@@ -20,6 +21,7 @@ const difficultyMap: Record<string, { color: string; label: string }> = {
 };
 
 export default function WrongBookPage() {
+  const navigate = useNavigate();
   const [wrongItems, setWrongItems] = useState<WrongItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,10 +50,22 @@ export default function WrongBookPage() {
 
       {wrongItems.length === 0 ? (
         <Card className="bg-slate-900 border-slate-800 rounded-2xl">
-          <div className="text-center py-10">
-            <span className="text-slate-500 text-lg">暂无错题</span>
-            <br />
-            <span className="text-slate-600">参加竞赛或练习后，错题会自动收录</span>
+          <div className="text-center py-12">
+            <svg className="w-20 h-20 mx-auto mb-4 text-slate-700" viewBox="0 0 80 80" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="10" y="10" width="60" height="60" rx="8" />
+              <line x1="25" y1="30" x2="55" y2="30" />
+              <line x1="25" y1="40" x2="50" y2="40" />
+              <line x1="25" y1="50" x2="45" y2="50" />
+              <circle cx="58" cy="58" r="14" fill="#0f172a" stroke="currentColor" />
+              <path d="M52 58 L58 64 L66 52" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <Text className="text-slate-500 text-lg block mb-2">暂无错题</Text>
+            <Text className="text-slate-600">参加竞赛或练习后，错题会自动收录</Text>
+            <div className="mt-4">
+              <Button onClick={() => navigate('/practice')} className="bg-blue-500 hover:bg-blue-400 border-0 text-white rounded-xl">
+                去练习 →
+              </Button>
+            </div>
           </div>
         </Card>
       ) : (
